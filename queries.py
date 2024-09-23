@@ -86,7 +86,7 @@ class Query:
 
         payload = {
             "departureTime": time,
-            "startingPlace": place_pair[0],
+            "startPlace": place_pair[0],
             "endPlace": place_pair[1],
         }
 
@@ -104,6 +104,7 @@ class Query:
             trip_id = d.get("tripId").get("type") + \
                 d.get("tripId").get("number")
             trip_ids.append(trip_id)
+
         return trip_ids
 
     def query_normal_ticket(self, place_pair: tuple = (), time: str = "", headers: dict = {}) -> List[str]:
