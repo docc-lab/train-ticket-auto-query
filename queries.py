@@ -536,6 +536,17 @@ class Query:
             "tripId": ""
         }
 
+        if not trip_ids:
+            logger.warning("No trip IDs available. Querying for available trips.")
+            if is_high_speed:
+                trip_ids = self.query_high_speed_ticket(place_pair=(start, end), time=date)
+            else:
+                trip_ids = self.query_normal_ticket(place_pair=(start, end), time=date)
+
+        if not trip_ids:
+            logger.error("No trips available for the given route and date.")
+            return
+
         trip_id = random_from_list(trip_ids)
         base_preserve_payload["tripId"] = trip_id
 
