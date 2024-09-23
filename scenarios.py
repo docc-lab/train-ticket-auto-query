@@ -1,5 +1,5 @@
-from .queries import Query
-from .utils import *
+from queries import Query
+from utils import *
 import logging
 
 logger = logging.getLogger("autoquery-scenario")
