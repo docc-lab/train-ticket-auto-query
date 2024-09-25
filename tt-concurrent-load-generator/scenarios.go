@@ -241,11 +241,7 @@ func QueryAndRebook(q *Query) {
 
     err = q.RebookTicket(orderID, tripID, newTripID, newDate, newSeatType)
     if err != nil {
-        if strings.Contains(err.Error(), "403") {
-            log.Printf("403 Forbidden error when rebooking order %s. This could be due to insufficient permissions or the order being in an invalid state for rebooking.", orderID)
-        } else {
-            log.Printf("Error rebooking ticket for order %s: %v", orderID, err)
-        }
+        log.Printf("Error rebooking ticket for order %s: %v", orderID, err)
         return
     }
 

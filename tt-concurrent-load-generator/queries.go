@@ -676,12 +676,17 @@ func (q *Query) RebookTicket(oldOrderID, oldTripID, newTripID, newDate, newSeatT
     defer resp.Body.Close()
 
     body, _ := io.ReadAll(resp.Body)
+    log.Printf("Rebook response: %s", string(body))
 
-    if resp.StatusCode != http.StatusOK {
-        return fmt.Errorf("rebook ticket failed with status code: %d, body: %s", resp.StatusCode, string(body))
+    var result map[string]interface{}
+    if err := json.Unmarshal(body, &result); err != nil {
+        return fmt.Errorf("failed to parse rebook response: %v", err)
     }
 
-    log.Printf("Rebook response: %s", string(body))
+    if status, ok := result["status"].(float64); !ok || status != 1 {
+        return fmt.Errorf("rebook failed: %s", result["msg"])
+    }
+
     return nil
 }
 
