@@ -17,7 +17,7 @@ type Query struct {
     UID     string
     Token   string
     Client  *http.Client
-    Cookies []*http.Cookies
+    Cookies []*http.Cookie
 }
 
 func NewQuery(address string) *Query {
