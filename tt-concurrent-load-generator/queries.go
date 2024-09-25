@@ -46,7 +46,7 @@ func (q *Query) Login(username, password string) error {
 
     resp, err := q.Client.Do(req)
     if err != nil {
-        return err
+        return fmt.Errorf("login request failed: %v", err)
     }
     defer resp.Body.Close()
 
@@ -55,11 +55,27 @@ func (q *Query) Login(username, password string) error {
     }
 
     var result map[string]interface{}
-    json.NewDecoder(resp.Body).Decode(&result)
+    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+        return fmt.Errorf("failed to decode reponse: %v", err)
+    }
 
-    data := result["data"].(map[string]interface{})
-    q.UID = data["userId"].(string)
-    q.Token = data["token"].(string)
+    data, ok := result["data"].(map[string]interface{})
+    if !ok {
+        return fmt.Errorf("unexpected response structure: %v", data)
+    }
+
+    userId, ok := data["userId"].(string)
+    if !ok {
+        return fmt.Errorf("userId not found in response")
+    }
+    q.UID = userId
+
+    token, ok := data["token"].(string)
+    if !ok {
+        return fmt.Errorf("token not found in response")
+    }
+    q.Token = token
+
     q.Client.Transport = &tokenTransport{Token: q.Token, Base: http.DefaultTransport}
 
     return nil
@@ -96,6 +112,16 @@ func (q *Query) queryTicket(placePair [2]string, date time.Time, isHighSpeed boo
         return nil, err
     }
     defer resp.Body.Close()
+
+    // Read and print the raw reponse body
+    body, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+        return fmt.Errorf("failed to read respond body: %v", err)
+    }
+    fmt.Printf("Raw response: %s\n", string(body))
+
+    // Make a new reader with body content for json.NewDecoder
+    resp.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 
     if resp.StatusCode != http.StatusOK {
         return nil, fmt.Errorf("query ticket failed with status code: %d", resp.StatusCode)

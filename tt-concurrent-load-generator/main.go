@@ -11,15 +11,16 @@ func main() {
     log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
     url := "http://192.168.188.42:8080"
+    log.Printf("Connecting to: %s", url)
 
-    // Initialize the Query struct
     q := NewQuery(url)
-
-    // Login to train-ticket and store the cookies
-    err := q.Login("username", "password") // You need to provide actual username and password
+    log.Println("Attempting to login...")
+    err := q.Login("username", "password")
     if err != nil {
         log.Fatalf("Login failed: %v", err)
     }
+
+    log.Println("Login successful")
 
     // Execute scenario on current user
     QueryAndPreserve(q)
