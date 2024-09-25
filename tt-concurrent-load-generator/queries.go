@@ -16,6 +16,7 @@ type Query struct {
     Address string
     UID     string
     Token   string
+    TokenExpiry time.Time
     Client  *http.Client
     Cookies []*http.Cookie
 }
@@ -26,6 +27,17 @@ func NewQuery(address string) *Query {
         Address: address,
         Client:  &http.Client{Jar: jar},
     }
+}
+
+func (q *Query) CheckAndRefreshToken() error {
+    if time.Now().After(q.TokenExpiry) {
+        log.Println("Token expired, refreshing...")
+        err := q.Login("fdse_microservice", "111111") // You might want to store these credentials more securely
+        if err != nil {
+            return fmt.Errorf("failed to refresh token: %v", err)
+        }
+    }
+    return nil
 }
 
 type tokenTransport struct {
@@ -110,6 +122,7 @@ func (q *Query) Login(username, password string) error {
         return fmt.Errorf("token not found in response")
     }
     q.Token = token
+    q.TokenExpiry = time.Now().Add(1 * time.Hour)
 
     return nil
 }
@@ -291,20 +304,42 @@ func (q *Query) QueryOrders(orderTypes []int, queryOther bool) ([][2]string, err
 }
 
 func (q *Query) CancelOrder(orderID, uuid string) error {
-    url := fmt.Sprintf("%s/api/v1/cancelservice/cancel/%s/%s", q.Address, orderID, uuid)
+    maxRetries := 3
+    for i := 0; i < maxRetries; i++ {
+        err := q.CheckAndRefreshToken()
+        if err != nil {
+            return fmt.Errorf("failed to check/refresh token: %v", err)
+        }
 
-    req, _ := http.NewRequest("GET", url, nil)
-    resp, err := q.Client.Do(req)
-    if err != nil {
-        return err
+        url := fmt.Sprintf("%s/api/v1/cancelservice/cancel/%s/%s", q.Address, orderID, uuid)
+
+        req, err := http.NewRequest("GET", url, nil)
+        if err != nil {
+            return fmt.Errorf("failed to create request: %v", err)
+        }
+
+        req.Header.Set("Authorization", "Bearer "+q.Token)
+
+        resp, err := q.Client.Do(req)
+        if err != nil {
+            log.Printf("Request failed (attempt %d): %v", i+1, err)
+            continue
+        }
+        defer resp.Body.Close()
+
+        body, _ := io.ReadAll(resp.Body)
+        log.Printf("Cancel order response (attempt %d): %s", i+1, string(body))
+
+        if resp.StatusCode == http.StatusOK {
+            log.Printf("Order %s successfully canceled", orderID)
+            return nil
+        }
+
+        log.Printf("Cancel order failed with status code: %d (attempt %d)", resp.StatusCode, i+1)
+        time.Sleep(time.Duration(i+1) * time.Second) // Exponential backoff
     }
-    defer resp.Body.Close()
 
-    if resp.StatusCode != http.StatusOK {
-        return fmt.Errorf("cancel order failed with status code: %d", resp.StatusCode)
-    }
-
-    return nil
+    return fmt.Errorf("failed to cancel order after %d attempts", maxRetries)
 }
 
 func (q *Query) CollectTicket(orderID string) error {

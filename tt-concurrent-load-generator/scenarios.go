@@ -17,13 +17,20 @@ func QueryAndCancel(q *Query) {
         pairs, err = q.QueryOrders([]int{0, 1}, true)
     }
 
-    if err != nil || len(pairs) == 0 {
-        log.Println("No orders found or error occurred")
+    if err != nil {
+        log.Printf("Error querying orders: %v", err)
+        return
+    }
+
+    if len(pairs) == 0 {
+        log.Println("No orders found")
         return
     }
 
     pair := RandomFromList(pairs).([2]string)
     orderID := pair[0]
+
+    log.Printf("Attempting to cancel order: %s", orderID)
 
     err = q.CancelOrder(orderID, q.UID)
     if err != nil {
@@ -31,7 +38,7 @@ func QueryAndCancel(q *Query) {
         return
     }
 
-    log.Printf("%s queried and canceled", pair[0])
+    log.Printf("Order %s queried and canceled", orderID)
 }
 
 func QueryAndCollect(q *Query) {

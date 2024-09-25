@@ -35,16 +35,14 @@ func main() {
 
     // Execute scenario on current user
     // QueryAndPreserve(q)
-
-    // Commented out scenarios - uncomment to use
-    QueryAndPay(q)
-    // QueryAndCancel(q)
+    // QueryAndPay(q)
+    QueryAndCancel(q)
     // QueryAndCollect(q)
     // QueryAndExecute(q)
     // QueryAndConsign(q)
     // QueryAndRebook(q)
 
-    // Commented out direct query executions - uncomment to use
+    // Direct query executions - uncomment to use
     // _, err = q.QueryHighSpeedTicket([2]string{"Shang Hai", "Su Zhou"}, time.Now())
     // _, err = q.QueryNormalTicket([2]string{"Shang Hai", "Nan Jing"}, time.Now())
     // _, err = q.QueryAssurances()
