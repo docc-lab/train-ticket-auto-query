@@ -127,7 +127,7 @@ func (q *Query) queryTicket(placePair [2]string, date time.Time, isHighSpeed boo
     // Read and print the raw reponse body
     body, err := io.ReadAll(resp.Body)
     if err != nil {
-        return fmt.Errorf("failed to read respond body: %v", err)
+        return nil, fmt.Errorf("failed to read respond body: %v", err)
     }
     fmt.Printf("Raw response: %s\n", string(body))
 
