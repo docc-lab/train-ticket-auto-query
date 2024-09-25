@@ -22,8 +22,10 @@ func QueryAndCancel(q *Query) {
         return
     }
 
-    pair := RandomFromList(pairs)
-    err = q.CancelOrder(pair[0], q.UID)
+    pair := RandomFromList(pairs).([2]string)
+    orderID := pair[0]
+
+    err = q.CancelOrder(orderID, q.UID)
     if err != nil {
         log.Printf("Error cancelling order: %v", err)
         return
@@ -47,8 +49,10 @@ func QueryAndCollect(q *Query) {
         return
     }
 
-    pair := RandomFromList(pairs)
-    err = q.CollectTicket(pair[0])
+    pair := RandomFromList(pairs).([2]string)
+    orderID := pair[0]
+
+    err = q.CancelOrder(orderID, q.UID)
     if err != nil {
         log.Printf("Error collecting ticket: %v", err)
         return
@@ -100,14 +104,16 @@ func QueryAndConsign(q *Query) {
         return
     }
 
-    res := RandomFromList(list)
-    err = q.PutConsign(res)
+    res := RandomFromList(list).([2]string)
+    orderID := res[0]
+
+    err = q.CancelOrder(orderID, q.UID)
     if err != nil {
         log.Printf("Error putting consign: %v", err)
         return
     }
 
-    log.Printf("%s queried and put consign", res["orderId"])
+    log.Printf("%s queried and put consign", res[0])
 }
 
 func QueryAndPay(q *Query) {
@@ -125,8 +131,10 @@ func QueryAndPay(q *Query) {
         return
     }
 
-    pair := RandomFromList(pairs)
-    err = q.PayOrder(pair[0], pair[1])
+    pair := RandomFromList(pairs).([2]string)
+    orderID := pair[0]
+
+    err = q.CancelOrder(orderID, q.UID)
     if err != nil {
         log.Printf("Error paying order: %v", err)
         return
@@ -150,8 +158,10 @@ func QueryAndRebook(q *Query) {
         return
     }
 
-    pair := RandomFromList(pairs)
-    err = q.CancelOrder(pair[0], q.UID)
+    pair := RandomFromList(pairs).([2]string)
+    orderID := pair[0]
+
+    err = q.CancelOrder(orderID, q.UID)
     if err != nil {
         log.Printf("Error cancelling order: %v", err)
         return
