@@ -1,8 +1,10 @@
 package main
 
 import (
+    "flag"
     "log"
     "os"
+    "time"
 )
 
 func main() {
@@ -10,12 +12,21 @@ func main() {
     log.SetOutput(os.Stdout)
     log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
+    dateStr := flag.String("date", BaseDate.Format("2006-01-02"), "Date for querying trips (format: YYYY-MM-DD)")
+    flag.Parse()
+
+    var err error
+    BaseDate, err = time.Parse("2006-01-02", *dateStr)
+    if err != nil {
+        log.Fatalf("Invalid date format: %v", err)
+    }
+
     url := "http://192.168.188.42:8080"
     log.Printf("Connecting to: %s", url)
 
     q := NewQuery(url)
     log.Println("Attempting to login...")
-    err := q.Login("fdse_microservice", "111111")
+    err = q.Login("fdse_microservice", "111111")
     if err != nil {
         log.Fatalf("Login failed: %v", err)
     }

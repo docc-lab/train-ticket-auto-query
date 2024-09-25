@@ -2,7 +2,6 @@ package main
 
 import (
     "log"
-    "time"
 )
 
 var highspeedWeights = map[bool]int{true: 60, false: 40}
@@ -66,15 +65,13 @@ func QueryAndPreserve(q *Query) {
     var tripIDs []string
     var err error
 
-    date := time.Now()
-
     highSpeed := RandomBoolean()
     if highSpeed {
         start, end = "Shang Hai", "Su Zhou"
-        tripIDs, err = q.QueryHighSpeedTicket([2]string{start, end}, date)
+        tripIDs, err = q.QueryHighSpeedTicket([2]string{start, end}, BaseDate)
     } else {
         start, end = "Shang Hai", "Nan Jing"
-        tripIDs, err = q.QueryNormalTicket([2]string{start, end}, date)
+        tripIDs, err = q.QueryNormalTicket([2]string{start, end}, BaseDate)
     }
 
     if err != nil {
@@ -83,7 +80,7 @@ func QueryAndPreserve(q *Query) {
     }
 
     if len(tripIDs) == 0 {
-        log.Printf("No trips available from %s to %s on %s", start, end, date.Format("2006-01-02"))
+        log.Printf("No trips available from %s to %s on %s", start, end, BaseDate.Format("2006-01-02"))
         return
     }
 
@@ -93,7 +90,7 @@ func QueryAndPreserve(q *Query) {
         return
     }
 
-    log.Printf("Ticket preserved from %s to %s", start, end)
+    log.Printf("Ticket preserved from %s to %s for %s", start, end, BaseDate.Format("2006-01-02"))
 }
 
 func QueryAndConsign(q *Query) {
