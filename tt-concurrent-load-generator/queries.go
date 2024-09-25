@@ -343,19 +343,26 @@ func (q *Query) CancelOrder(orderID, uuid string) error {
 }
 
 func (q *Query) CollectTicket(orderID string) error {
+    log.Printf("Attempting to collect ticket for order %s", orderID)
     url := fmt.Sprintf("%s/api/v1/executeservice/execute/collected/%s", q.Address, orderID)
 
     req, _ := http.NewRequest("GET", url, nil)
+    req.Header.Set("Authorization", "Bearer "+q.Token)
+
     resp, err := q.Client.Do(req)
     if err != nil {
-        return err
+        return fmt.Errorf("collect ticket request failed: %v", err)
     }
     defer resp.Body.Close()
 
+    body, _ := io.ReadAll(resp.Body)
+    log.Printf("Collect ticket response for order %s: %s", orderID, string(body))
+
     if resp.StatusCode != http.StatusOK {
-        return fmt.Errorf("collect ticket failed with status code: %d", resp.StatusCode)
+        return fmt.Errorf("collect ticket failed with status code: %d, body: %s", resp.StatusCode, string(body))
     }
 
+    log.Printf("Ticket for order %s successfully collected", orderID)
     return nil
 }
 

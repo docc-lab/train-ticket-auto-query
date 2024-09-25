@@ -36,8 +36,8 @@ func main() {
     // Execute scenario on current user
     // QueryAndPreserve(q)
     // QueryAndPay(q)
-    QueryAndCancel(q)
-    // QueryAndCollect(q)
+    // QueryAndCancel(q)
+    QueryAndCollect(q)
     // QueryAndExecute(q)
     // QueryAndConsign(q)
     // QueryAndRebook(q)

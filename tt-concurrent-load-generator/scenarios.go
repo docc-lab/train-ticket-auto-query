@@ -8,12 +8,15 @@ import (
 var highspeedWeights = map[bool]int{true: 60, false: 40}
 
 func QueryAndCancel(q *Query) {
+    log.Println("Starting QueryAndCancel operation")
     var pairs [][2]string
     var err error
 
     if RandomFromWeighted(highspeedWeights) {
+        log.Println("Querying high-speed orders")
         pairs, err = q.QueryOrders([]int{0, 1}, false)
     } else {
+        log.Println("Querying normal orders")
         pairs, err = q.QueryOrders([]int{0, 1}, true)
     }
 
@@ -23,49 +26,59 @@ func QueryAndCancel(q *Query) {
     }
 
     if len(pairs) == 0 {
-        log.Println("No orders found")
+        log.Println("No orders found for cancellation")
         return
     }
 
     pair := RandomFromList(pairs).([2]string)
     orderID := pair[0]
 
-    log.Printf("Attempting to cancel order: %s", orderID)
+    log.Printf("Selected order %s for cancellation", orderID)
 
     err = q.CancelOrder(orderID, q.UID)
     if err != nil {
-        log.Printf("Error cancelling order: %v", err)
+        log.Printf("Error cancelling order %s: %v", orderID, err)
         return
     }
 
-    log.Printf("Order %s queried and canceled", orderID)
+    log.Printf("Order %s successfully queried and canceled", orderID)
 }
 
 func QueryAndCollect(q *Query) {
+    log.Println("Starting QueryAndCollect operation")
     var pairs [][2]string
     var err error
 
     if RandomFromWeighted(highspeedWeights) {
+        log.Println("Querying high-speed orders for collection")
         pairs, err = q.QueryOrders([]int{1}, false)
     } else {
+        log.Println("Querying normal orders for collection")
         pairs, err = q.QueryOrders([]int{1}, true)
     }
 
-    if err != nil || len(pairs) == 0 {
-        log.Println("No orders found or error occurred")
+    if err != nil {
+        log.Printf("Error querying orders for collection: %v", err)
+        return
+    }
+
+    if len(pairs) == 0 {
+        log.Println("No orders found for collection")
         return
     }
 
     pair := RandomFromList(pairs).([2]string)
     orderID := pair[0]
 
-    err = q.CancelOrder(orderID, q.UID)
+    log.Printf("Selected order %s for collection", orderID)
+
+    err = q.CollectTicket(orderID)
     if err != nil {
-        log.Printf("Error collecting ticket: %v", err)
+        log.Printf("Error collecting ticket for order %s: %v", orderID, err)
         return
     }
 
-    log.Printf("%s queried and collected", pair[0])
+    log.Printf("Order %s successfully queried and collected", orderID)
 }
 
 func QueryAndPreserve(q *Query) error {
