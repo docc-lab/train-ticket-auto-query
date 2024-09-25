@@ -3,6 +3,7 @@ package main
 import (
     "fmt"
     "log"
+    "strings"
 )
 
 var highspeedWeights = map[bool]int{true: 60, false: 40}
@@ -114,30 +115,54 @@ func QueryAndPreserve(q *Query) error {
 }
 
 func QueryAndConsign(q *Query) {
+    log.Println("Starting QueryAndConsign operation")
     var list []map[string]interface{}
     var err error
 
     if RandomFromWeighted(highspeedWeights) {
+        log.Println("Querying high-speed orders for consignment")
         list, err = q.QueryOrdersAllInfo(false)
     } else {
+        log.Println("Querying normal orders for consignment")
         list, err = q.QueryOrdersAllInfo(true)
     }
 
-    if err != nil || len(list) == 0 {
-        log.Println("No orders found or error occurred")
-        return
-    }
-
-    res := RandomFromList(list).([2]string)
-    orderID := res[0]
-
-    err = q.CancelOrder(orderID, q.UID)
     if err != nil {
-        log.Printf("Error putting consign: %v", err)
+        log.Printf("Error querying orders for consignment: %v", err)
         return
     }
 
-    log.Printf("%s queried and put consign", res[0])
+    if len(list) == 0 {
+        log.Println("No orders found for consignment")
+        return
+    }
+
+    // Try consigning orders until one succeeds or we run out of orders
+    for _, selectedOrder := range list {
+        orderID, ok := selectedOrder["orderId"].(string)
+        if !ok {
+            log.Println("Error: orderId not found or not a string in selected order")
+            continue
+        }
+
+        log.Printf("Attempting to consign order %s", orderID)
+
+        err = q.PutConsign(selectedOrder)
+        if err != nil {
+            log.Printf("Error putting consign for order %s: %v", orderID, err)
+            if strings.Contains(err.Error(), "403") {
+                log.Printf("403 Forbidden error for order %s. This order may not be in a state that allows consignment. Trying next order.", orderID)
+                continue
+            }
+            // For other errors, we'll stop trying
+            return
+        }
+
+        log.Printf("Order %s successfully queried and consigned", orderID)
+        return
+    }
+
+    log.Println("Unable to consign any of the queried orders")
 }
 
 func QueryAndPay(q *Query) {

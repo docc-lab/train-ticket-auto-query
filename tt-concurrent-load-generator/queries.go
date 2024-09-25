@@ -554,32 +554,57 @@ func (q *Query) Preserve(start, end string, tripIDs []string, isHighSpeed bool, 
     return nil
 }
 
-func (q *Query) PutConsign(consignInfo map[string]interface{}) error {
+func (q *Query) PutConsign(result map[string]interface{}) error {
     url := fmt.Sprintf("%s/api/v1/consignservice/consigns", q.Address)
+    
+    // Ensure all required fields are present
+    requiredFields := []string{"accountId", "orderId", "from", "to"}
+    for _, field := range requiredFields {
+        if _, ok := result[field]; !ok {
+            return fmt.Errorf("missing required field: %s", field)
+        }
+    }
 
-    consignInfo["handleDate"] = time.Now().Format("2006-01-02")
-    consignInfo["targetDate"] = time.Now().Format("2006-01-02 15:04:05")
-    consignInfo["consignee"] = "32"
-    consignInfo["phone"] = "12345677654"
-    consignInfo["weight"] = "32"
-    consignInfo["id"] = ""
-    consignInfo["isWithin"] = false
+    consignload := map[string]interface{}{
+        "accountId":     result["accountId"],
+        "handleDate":    time.Now().Format("2006-01-02"),
+        "targetDate":    time.Now().Format("2006-01-02 15:04:05"),
+        "from":          result["from"],
+        "to":            result["to"],
+        "orderId":       result["orderId"],
+        "consignee":     "32",
+        "phone":         "12345677654",
+        "weight":        "32",
+        "id":            "",
+        "isWithin":      false,
+    }
 
-    jsonPayload, _ := json.Marshal(consignInfo)
+    jsonPayload, err := json.Marshal(consignload)
+    if err != nil {
+        return fmt.Errorf("failed to marshal consign payload: %v", err)
+    }
 
-    req, _ := http.NewRequest("PUT", url, bytes.NewBuffer(jsonPayload))
+    req, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonPayload))
+    if err != nil {
+        return fmt.Errorf("failed to create consign request: %v", err)
+    }
+
     req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("Authorization", "Bearer "+q.Token)
 
     resp, err := q.Client.Do(req)
     if err != nil {
-        return err
+        return fmt.Errorf("failed to send consign request: %v", err)
     }
     defer resp.Body.Close()
 
+    body, _ := io.ReadAll(resp.Body)
+
     if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-        return fmt.Errorf("put consign failed with status code: %d", resp.StatusCode)
+        return fmt.Errorf("put consign failed with status code: %d, body: %s", resp.StatusCode, string(body))
     }
 
+    log.Printf("Consignment for order %s put successfully", result["orderId"])
     return nil
 }
 
@@ -659,29 +684,46 @@ func (q *Query) QueryOrdersAllInfo(queryOther bool) ([]map[string]interface{}, e
     payload := map[string]string{
         "loginId": q.UID,
     }
-    jsonPayload, _ := json.Marshal(payload)
 
-    req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+    jsonPayload, err := json.Marshal(payload)
+    if err != nil {
+        return nil, fmt.Errorf("failed to marshal payload: %v", err)
+    }
+
+    req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+    if err != nil {
+        return nil, fmt.Errorf("failed to create request: %v", err)
+    }
     req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("Authorization", "Bearer "+q.Token)
 
     resp, err := q.Client.Do(req)
     if err != nil {
-        return nil, err
+        return nil, fmt.Errorf("failed to send request: %v", err)
     }
     defer resp.Body.Close()
 
     if resp.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("query orders all info failed with status code: %d", resp.StatusCode)
+        body, _ := io.ReadAll(resp.Body)
+        return nil, fmt.Errorf("query orders all info failed with status code: %d, body: %s", resp.StatusCode, string(body))
     }
 
     var result map[string]interface{}
-    json.NewDecoder(resp.Body).Decode(&result)
+    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+        return nil, fmt.Errorf("failed to decode response: %v", err)
+    }
 
-    data := result["data"].([]interface{})
-    orderInfoList := make([]map[string]interface{}, len(data))
+    data, ok := result["data"].([]interface{})
+    if !ok {
+        return nil, fmt.Errorf("unexpected response structure: data is not an array")
+    }
 
+    ordersList := make([]map[string]interface{}, len(data))
     for i, order := range data {
-        orderMap := order.(map[string]interface{})
+        orderMap, ok := order.(map[string]interface{})
+        if !ok {
+            return nil, fmt.Errorf("unexpected order structure at index %d", i)
+        }
         orderInfo := map[string]interface{}{
             "accountId":  orderMap["accountId"],
             "targetDate": time.Now().Format("2006-01-02 15:04:05"),
@@ -689,10 +731,10 @@ func (q *Query) QueryOrdersAllInfo(queryOther bool) ([]map[string]interface{}, e
             "from":       orderMap["from"],
             "to":         orderMap["to"],
         }
-        orderInfoList[i] = orderInfo
+        ordersList[i] = orderInfo
     }
 
-    return orderInfoList, nil
+    return ordersList, nil
 }
 
 func (q *Query) QueryAdminBasicPrice() (*http.Response, error) {
