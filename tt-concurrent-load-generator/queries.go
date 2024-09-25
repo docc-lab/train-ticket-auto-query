@@ -6,6 +6,7 @@ import (
     "fmt"
     "net/http"
     "time"
+    "log"
 )
 
 type Query struct {
@@ -20,6 +21,16 @@ func NewQuery(address string) *Query {
         Address: address,
         Client:  &http.Client{},
     }
+}
+
+type tokenTransport struct {
+    Token string
+    Base  http.RoundTripper
+}
+
+func (t *tokenTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+    req.Header.Set("Authorization", "Bearer "+t.Token)
+    return t.Base.RoundTrip(req)
 }
 
 func (q *Query) Login(username, password string) error {

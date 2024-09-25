@@ -1,11 +1,11 @@
-package operations
+package main
 
 import (
     "fmt"
     "log"
     "time"
 
-    ".."
+    "github.com/docc-lab/train-ticket-auto-query/tt-concurrent-load-generator"
 )
 
 func QueryAdvancedTicket(q *queries.Query) {

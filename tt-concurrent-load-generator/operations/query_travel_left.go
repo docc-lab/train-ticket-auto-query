@@ -1,10 +1,10 @@
-package operations
+package main
 
 import (
     "log"
     "time"
 
-    ".."
+    "github.com/docc-lab/train-ticket-auto-query/tt-concurrent-load-generator"
 )
 
 func QueryTravelLeft(q *main.Query) {

@@ -1,9 +1,9 @@
-package operations
+package main
 
 import (
     "log"
 
-    ".."
+    "github.com/docc-lab/train-ticket-auto-query/tt-concurrent-load-generator"
 )
 
 func QueryAndEnterStation(q *main.Query) {

@@ -3,8 +3,6 @@ package main
 import (
     "log"
     "os"
-
-    "./scenarios"
 )
 
 func main() {
@@ -24,15 +22,15 @@ func main() {
     }
 
     // Execute scenario on current user
-    scenarios.QueryAndPreserve(q)
+    QueryAndPreserve(q)
 
     // Commented out scenarios - uncomment to use
-    // scenarios.QueryAndPay(q)
-    // scenarios.QueryAndCancel(q)
-    // scenarios.QueryAndCollect(q)
-    // scenarios.QueryAndExecute(q)
-    // scenarios.QueryAndConsign(q)
-    // scenarios.QueryAndRebook(q)
+    // QueryAndPay(q)
+    // QueryAndCancel(q)
+    // QueryAndCollect(q)
+    // QueryAndExecute(q)
+    // QueryAndConsign(q)
+    // QueryAndRebook(q)
 
     // Commented out direct query executions - uncomment to use
     // _, err = q.QueryHighSpeedTicket([2]string{"Shang Hai", "Su Zhou"}, time.Now())
