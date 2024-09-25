@@ -15,7 +15,7 @@ func main() {
 
     q := NewQuery(url)
     log.Println("Attempting to login...")
-    err := q.Login("username", "password")
+    err := q.Login("fdse_microservice", "111111")
     if err != nil {
         log.Fatalf("Login failed: %v", err)
     }

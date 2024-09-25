@@ -7,6 +7,8 @@ import (
     "io"
     "log"
     "net/http"
+    "net/http/cookiejar"
+    _url "net/url"
     "time"
 )
 
@@ -15,12 +17,14 @@ type Query struct {
     UID     string
     Token   string
     Client  *http.Client
+    Cookies []*http.Cookies
 }
 
 func NewQuery(address string) *Query {
+    jar, _ := cookiejar.New(nil)
     return &Query{
         Address: address,
-        Client:  &http.Client{},
+        Client:  &http.Client{Jar: jar},
     }
 }
 
@@ -36,6 +40,19 @@ func (t *tokenTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func (q *Query) Login(username, password string) error {
     url := fmt.Sprintf("%s/api/v1/users/login", q.Address)
+    
+    // Create a cookie jar to handle cookies
+    jar, _ := cookiejar.New(nil)
+    q.Client.Jar = jar
+
+    // Set initial cookies
+    initialCookies := []*http.Cookie{
+        {Name: "JSESSIONID", Value: "9ED5635A2A892A4BA31E7E98533A279D"},
+        {Name: "YsbCaptcha", Value: "025080CF8BA94594B09E283F17815444"},
+    }
+    u, _ := _url.Parse(url)
+    q.Client.Jar.SetCookies(u, initialCookies)
+
     payload := map[string]string{
         "username": username,
         "password": password,
@@ -44,12 +61,22 @@ func (q *Query) Login(username, password string) error {
 
     req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
     req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("Proxy-Connection", "keep-alive")
+    req.Header.Set("Accept", "application/json, text/javascript, */*; q=0.01")
+    req.Header.Set("X-Requested-With", "XMLHttpRequest")
+    req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36")
+    req.Header.Set("Origin", url)
+    req.Header.Set("Referer", fmt.Sprintf("%s/client_login.html", q.Address))
+    req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
 
     resp, err := q.Client.Do(req)
     if err != nil {
         return fmt.Errorf("login request failed: %v", err)
     }
     defer resp.Body.Close()
+
+    // Store cookies for future requests
+    q.Cookies = q.Client.Jar.Cookies(u)
 
     // Read and print the raw response body
     body, err := io.ReadAll(resp.Body)
@@ -58,15 +85,12 @@ func (q *Query) Login(username, password string) error {
     }
     fmt.Printf("Raw response: %s\n", string(body))
 
-    // Create a new reader with the body content for json.NewDecoder
-    resp.Body = io.NopCloser(bytes.NewBuffer(body))
-
     if resp.StatusCode != http.StatusOK {
         return fmt.Errorf("login failed with status code: %d", resp.StatusCode)
     }
 
     var result map[string]interface{}
-    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+    if err := json.NewDecoder(bytes.NewReader(body)).Decode(&result); err != nil {
         return fmt.Errorf("failed to decode response: %v", err)
     }
 
@@ -86,8 +110,6 @@ func (q *Query) Login(username, password string) error {
         return fmt.Errorf("token not found in response")
     }
     q.Token = token
-
-    q.Client.Transport = &tokenTransport{Token: q.Token, Base: http.DefaultTransport}
 
     return nil
 }
