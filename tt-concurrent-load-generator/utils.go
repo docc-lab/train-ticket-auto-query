@@ -16,10 +16,19 @@ func RandomBoolean() bool {
 func RandomFromList(list interface{}) interface{} {
     switch v := list.(type) {
     case []string:
+        if len(v) == 0 {
+            return ""
+        }
         return v[rand.Intn(len(v))]
     case [][2]string:
+        if len(v) == 0 {
+            return [2]string{"", ""}
+        }
         return v[rand.Intn(len(v))]
     case []map[string]interface{}:
+        if len(v) == 0 {
+            return map[string]interface{}{}
+        }
         return v[rand.Intn(len(v))]
     default:
         return nil

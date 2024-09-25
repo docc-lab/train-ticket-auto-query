@@ -66,17 +66,24 @@ func QueryAndPreserve(q *Query) {
     var tripIDs []string
     var err error
 
-    highSpeed := RandomFromWeighted(highspeedWeights)
+    date := time.Now()
+
+    highSpeed := RandomBoolean()
     if highSpeed {
         start, end = "Shang Hai", "Su Zhou"
-        tripIDs, err = q.QueryHighSpeedTicket([2]string{start, end}, time.Now())
+        tripIDs, err = q.QueryHighSpeedTicket([2]string{start, end}, date)
     } else {
         start, end = "Shang Hai", "Nan Jing"
-        tripIDs, err = q.QueryNormalTicket([2]string{start, end}, time.Now())
+        tripIDs, err = q.QueryNormalTicket([2]string{start, end}, date)
     }
 
     if err != nil {
         log.Printf("Error querying tickets: %v", err)
+        return
+    }
+
+    if len(tripIDs) == 0 {
+        log.Printf("No trips available from %s to %s on %s", start, end, date.Format("2006-01-02"))
         return
     }
 

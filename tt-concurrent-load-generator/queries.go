@@ -142,33 +142,46 @@ func (q *Query) queryTicket(placePair [2]string, date time.Time, isHighSpeed boo
 
     resp, err := q.Client.Do(req)
     if err != nil {
-        return nil, err
+        return nil, fmt.Errorf("query ticket failed: %v", err)
     }
     defer resp.Body.Close()
 
-    // Read and print the raw reponse body
     body, err := io.ReadAll(resp.Body)
     if err != nil {
-        return nil, fmt.Errorf("failed to read respond body: %v", err)
+        return nil, fmt.Errorf("failed to read response body: %v", err)
     }
     fmt.Printf("Raw response: %s\n", string(body))
-
-    // Make a new reader with body content for json.NewDecoder
-    resp.Body = io.NopCloser(bytes.NewBuffer(body))
 
     if resp.StatusCode != http.StatusOK {
         return nil, fmt.Errorf("query ticket failed with status code: %d", resp.StatusCode)
     }
 
     var result map[string]interface{}
-    json.NewDecoder(resp.Body).Decode(&result)
+    if err := json.Unmarshal(body, &result); err != nil {
+        return nil, fmt.Errorf("failed to decode response: %v", err)
+    }
 
-    data := result["data"].([]interface{})
-    tripIDs := make([]string, len(data))
-    for i, trip := range data {
-        tripMap := trip.(map[string]interface{})
-        tripID := tripMap["tripId"].(map[string]interface{})
-        tripIDs[i] = tripID["type"].(string) + tripID["number"].(string)
+    data, ok := result["data"].([]interface{})
+    if !ok {
+        return []string{}, nil // Return empty slice if no data
+    }
+
+    tripIDs := make([]string, 0, len(data))
+    for _, trip := range data {
+        tripMap, ok := trip.(map[string]interface{})
+        if !ok {
+            continue
+        }
+        tripID, ok := tripMap["tripId"].(map[string]interface{})
+        if !ok {
+            continue
+        }
+        tripType, ok1 := tripID["type"].(string)
+        tripNumber, ok2 := tripID["number"].(string)
+        if !ok1 || !ok2 {
+            continue
+        }
+        tripIDs = append(tripIDs, tripType+tripNumber)
     }
 
     return tripIDs, nil
@@ -380,6 +393,10 @@ func (q *Query) QueryContacts() ([]string, error) {
 }
 
 func (q *Query) Preserve(start, end string, tripIDs []string, isHighSpeed bool) error {
+    if len(tripIDs) == 0 {
+        return fmt.Errorf("no trips available for the given route")
+    }
+
     var url string
     if isHighSpeed {
         url = fmt.Sprintf("%s/api/v1/preserveservice/preserve", q.Address)
