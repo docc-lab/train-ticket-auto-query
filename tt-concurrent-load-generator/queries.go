@@ -437,7 +437,7 @@ func (q *Query) Preserve(start, end string, tripIDs []string, isHighSpeed bool) 
     }
     defer resp.Body.Close()
 
-    body, _ := ioutil.ReadAll(resp.Body)
+    body, _ := io.ReadAll(resp.Body)
     log.Printf("Preserve response: %s", string(body))
 
     if resp.StatusCode != http.StatusOK {
