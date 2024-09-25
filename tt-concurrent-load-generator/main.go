@@ -34,13 +34,13 @@ func main() {
     log.Println("Login successful")
 
     // Execute scenario on current user
-    // QueryAndPreserve(q)
-    // QueryAndPay(q)
-    // QueryAndCancel(q)
-    // QueryAndCollect(q)
-    // QueryAndExecute(q)
+    QueryAndPreserve(q)
+    QueryAndPay(q)
+    QueryAndCancel(q)
+    QueryAndCollect(q)
+    QueryAndExecute(q)
     QueryAndConsign(q)
-    // QueryAndRebook(q)
+    QueryAndRebook(q)
 
     // Direct query executions - uncomment to use
     // _, err = q.QueryHighSpeedTicket([2]string{"Shang Hai", "Su Zhou"}, time.Now())

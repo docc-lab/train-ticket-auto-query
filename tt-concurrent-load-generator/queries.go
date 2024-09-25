@@ -645,31 +645,43 @@ func (q *Query) PayOrder(orderID, tripID string) error {
     return nil
 }
 
-func (q *Query) RebookTicket(oldOrderID, oldTripID, newTripID string, date time.Time) error {
+func (q *Query) RebookTicket(oldOrderID, oldTripID, newTripID, newDate, newSeatType string) error {
     url := fmt.Sprintf("%s/api/v1/rebookservice/rebook", q.Address)
 
     payload := map[string]string{
         "oldTripId": oldTripID,
         "orderId":   oldOrderID,
         "tripId":    newTripID,
-        "date":      time.Now().Format("2006-01-02"),
-        "seatType":  RandomFromList([]string{"2", "3"}).(string),
+        "date":      newDate,
+        "seatType":  newSeatType,
     }
-    jsonPayload, _ := json.Marshal(payload)
+    
+    jsonPayload, err := json.Marshal(payload)
+    if err != nil {
+        return fmt.Errorf("failed to marshal rebook payload: %v", err)
+    }
 
-    req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+    req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+    if err != nil {
+        return fmt.Errorf("failed to create rebook request: %v", err)
+    }
+
     req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("Authorization", "Bearer "+q.Token)
 
     resp, err := q.Client.Do(req)
     if err != nil {
-        return err
+        return fmt.Errorf("failed to send rebook request: %v", err)
     }
     defer resp.Body.Close()
 
+    body, _ := io.ReadAll(resp.Body)
+
     if resp.StatusCode != http.StatusOK {
-        return fmt.Errorf("rebook ticket failed with status code: %d", resp.StatusCode)
+        return fmt.Errorf("rebook ticket failed with status code: %d, body: %s", resp.StatusCode, string(body))
     }
 
+    log.Printf("Rebook response: %s", string(body))
     return nil
 }
 

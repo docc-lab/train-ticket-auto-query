@@ -4,6 +4,7 @@ import (
     "fmt"
     "log"
     "strings"
+    "time"
 )
 
 var highspeedWeights = map[bool]int{true: 60, false: 40}
@@ -198,36 +199,57 @@ func QueryAndPay(q *Query) {
 }
 
 func QueryAndRebook(q *Query) {
+    log.Println("Starting QueryAndRebook operation")
     var pairs [][2]string
     var err error
 
     if RandomFromWeighted(highspeedWeights) {
+        log.Println("Querying high-speed orders for rebooking")
         pairs, err = q.QueryOrders([]int{0, 1}, false)
     } else {
+        log.Println("Querying normal orders for rebooking")
         pairs, err = q.QueryOrders([]int{0, 1}, true)
     }
 
-    if err != nil || len(pairs) == 0 {
-        log.Println("No orders found or error occurred")
+    if err != nil {
+        log.Printf("Error querying orders for rebooking: %v", err)
+        return
+    }
+
+    if len(pairs) == 0 {
+        log.Println("No orders found for rebooking")
         return
     }
 
     pair := RandomFromList(pairs).([2]string)
-    orderID := pair[0]
+    orderID, tripID := pair[0], pair[1]
 
+    log.Printf("Selected order %s (Trip: %s) for rebooking", orderID, tripID)
+
+    // First, cancel the order
     err = q.CancelOrder(orderID, q.UID)
     if err != nil {
-        log.Printf("Error cancelling order: %v", err)
+        log.Printf("Error cancelling order %s: %v", orderID, err)
         return
     }
+    log.Printf("Order %s successfully canceled", orderID)
 
-    err = q.RebookTicket(pair[0], pair[1], pair[1], BaseDate)
+    // Now attempt to rebook
+    newTripID := tripID // For simplicity, we're rebooking to the same trip
+    newDate := time.Now().Format("2006-01-02")
+    newSeatType := RandomFromList([]string{"2", "3"}).(string)
+
+    err = q.RebookTicket(orderID, tripID, newTripID, newDate, newSeatType)
     if err != nil {
-        log.Printf("Error rebooking ticket: %v", err)
+        if strings.Contains(err.Error(), "403") {
+            log.Printf("403 Forbidden error when rebooking order %s. This could be due to insufficient permissions or the order being in an invalid state for rebooking.", orderID)
+        } else {
+            log.Printf("Error rebooking ticket for order %s: %v", orderID, err)
+        }
         return
     }
 
-    log.Printf("%s queried and rebooked", pair[0])
+    log.Printf("Order %s successfully rebooked to trip %s on %s with seat type %s", orderID, newTripID, newDate, newSeatType)
 }
 
 func QueryAndExecute(q *Query) {
