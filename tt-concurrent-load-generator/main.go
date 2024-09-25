@@ -37,9 +37,9 @@ func main() {
     // QueryAndPreserve(q)
     // QueryAndPay(q)
     // QueryAndCancel(q)
-    QueryAndCollect(q)
+    // QueryAndCollect(q)
     // QueryAndExecute(q)
-    // QueryAndConsign(q)
+    QueryAndConsign(q)
     // QueryAndRebook(q)
 
     // Direct query executions - uncomment to use

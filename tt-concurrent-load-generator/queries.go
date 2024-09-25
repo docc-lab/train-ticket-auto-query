@@ -367,19 +367,30 @@ func (q *Query) CollectTicket(orderID string) error {
 }
 
 func (q *Query) EnterStation(orderID string) error {
+    log.Printf("Attempting to enter station for order %s", orderID)
     url := fmt.Sprintf("%s/api/v1/executeservice/execute/execute/%s", q.Address, orderID)
 
-    req, _ := http.NewRequest("GET", url, nil)
+    req, err := http.NewRequest("GET", url, nil)
+    if err != nil {
+        return fmt.Errorf("failed to create request: %v", err)
+    }
+
+    req.Header.Set("Authorization", "Bearer "+q.Token)
+
     resp, err := q.Client.Do(req)
     if err != nil {
-        return err
+        return fmt.Errorf("enter station request failed: %v", err)
     }
     defer resp.Body.Close()
 
+    body, _ := io.ReadAll(resp.Body)
+    log.Printf("Enter station response for order %s: %s", orderID, string(body))
+
     if resp.StatusCode != http.StatusOK {
-        return fmt.Errorf("enter station failed with status code: %d", resp.StatusCode)
+        return fmt.Errorf("enter station failed with status code: %d, body: %s", resp.StatusCode, string(body))
     }
 
+    log.Printf("Successfully entered station for order %s", orderID)
     return nil
 }
 

@@ -204,3 +204,40 @@ func QueryAndRebook(q *Query) {
 
     log.Printf("%s queried and rebooked", pair[0])
 }
+
+func QueryAndExecute(q *Query) {
+    log.Println("Starting QueryAndExecute operation")
+    var pairs [][2]string
+    var err error
+
+    if RandomFromWeighted(highspeedWeights) {
+        log.Println("Querying high-speed orders for execution")
+        pairs, err = q.QueryOrders([]int{2}, false)
+    } else {
+        log.Println("Querying normal orders for execution")
+        pairs, err = q.QueryOrders([]int{2}, true)
+    }
+
+    if err != nil {
+        log.Printf("Error querying orders for execution: %v", err)
+        return
+    }
+
+    if len(pairs) == 0 {
+        log.Println("No orders found for execution")
+        return
+    }
+
+    pair := RandomFromList(pairs).([2]string)
+    orderID := pair[0]
+
+    log.Printf("Selected order %s for execution", orderID)
+
+    err = q.EnterStation(orderID)
+    if err != nil {
+        log.Printf("Error entering station for order %s: %v", orderID, err)
+        return
+    }
+
+    log.Printf("Order %s successfully queried and executed (entered station)", orderID)
+}
