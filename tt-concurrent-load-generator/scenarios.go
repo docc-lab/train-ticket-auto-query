@@ -1,6 +1,7 @@
 package main
 
 import (
+    "fmt"
     "log"
 )
 
@@ -60,37 +61,36 @@ func QueryAndCollect(q *Query) {
     log.Printf("%s queried and collected", pair[0])
 }
 
-func QueryAndPreserve(q *Query) {
+func QueryAndPreserve(q *Query) error {
     var start, end string
     var tripIDs []string
+    var tripDate string
     var err error
 
     highSpeed := RandomBoolean()
     if highSpeed {
         start, end = "Shang Hai", "Su Zhou"
-        tripIDs, err = q.QueryHighSpeedTicket([2]string{start, end}, BaseDate)
+        tripIDs, tripDate, err = q.QueryHighSpeedTicket([2]string{start, end}, BaseDate)
     } else {
         start, end = "Shang Hai", "Nan Jing"
-        tripIDs, err = q.QueryNormalTicket([2]string{start, end}, BaseDate)
+        tripIDs, tripDate, err = q.QueryNormalTicket([2]string{start, end}, BaseDate)
     }
 
     if err != nil {
-        log.Printf("Error querying tickets: %v", err)
-        return
+        return fmt.Errorf("error querying tickets: %v", err)
     }
 
     if len(tripIDs) == 0 {
-        log.Printf("No trips available from %s to %s on %s", start, end, BaseDate.Format("2006-01-02"))
-        return
+        return fmt.Errorf("no trips available from %s to %s on %s", start, end, BaseDate.Format("2006-01-02"))
     }
 
-    err = q.Preserve(start, end, tripIDs, highSpeed)
+    err = q.Preserve(start, end, tripIDs, highSpeed, tripDate)
     if err != nil {
-        log.Printf("Error preserving ticket: %v", err)
-        return
+        return fmt.Errorf("error preserving ticket: %v", err)
     }
 
-    log.Printf("Ticket preserved from %s to %s for %s", start, end, BaseDate.Format("2006-01-02"))
+    log.Printf("Ticket preserved from %s to %s for %s", start, end, tripDate)
+    return nil
 }
 
 func QueryAndConsign(q *Query) {
@@ -171,7 +171,7 @@ func QueryAndRebook(q *Query) {
         return
     }
 
-    err = q.RebookTicket(pair[0], pair[1], pair[1])
+    err = q.RebookTicket(pair[0], pair[1], pair[1], BaseDate)
     if err != nil {
         log.Printf("Error rebooking ticket: %v", err)
         return

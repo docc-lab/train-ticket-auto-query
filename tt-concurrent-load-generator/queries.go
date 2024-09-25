@@ -83,7 +83,7 @@ func (q *Query) Login(username, password string) error {
     if err != nil {
         return fmt.Errorf("failed to read response body: %v", err)
     }
-    fmt.Printf("Raw response: %s\n", string(body))
+    fmt.Printf("Raw response2: %s\n", string(body))
 
     if resp.StatusCode != http.StatusOK {
         return fmt.Errorf("login failed with status code: %d", resp.StatusCode)
@@ -114,15 +114,15 @@ func (q *Query) Login(username, password string) error {
     return nil
 }
 
-func (q *Query) QueryHighSpeedTicket(placePair [2]string, date time.Time) ([]string, error) {
+func (q *Query) QueryHighSpeedTicket(placePair [2]string, date time.Time) ([]string, string, error) {
     return q.queryTicket(placePair, date, true)
 }
 
-func (q *Query) QueryNormalTicket(placePair [2]string, date time.Time) ([]string, error) {
+func (q *Query) QueryNormalTicket(placePair [2]string, date time.Time) ([]string, string, error) {
     return q.queryTicket(placePair, date, false)
 }
 
-func (q *Query) queryTicket(placePair [2]string, date time.Time, isHighSpeed bool) ([]string, error) {
+func (q *Query) queryTicket(placePair [2]string, date time.Time, isHighSpeed bool) ([]string, string, error) {
     var url string
     if isHighSpeed {
         url = fmt.Sprintf("%s/api/v1/travelservice/trips/left", q.Address)
@@ -142,49 +142,43 @@ func (q *Query) queryTicket(placePair [2]string, date time.Time, isHighSpeed boo
 
     resp, err := q.Client.Do(req)
     if err != nil {
-        return nil, fmt.Errorf("query ticket failed: %v", err)
+        return nil, "", fmt.Errorf("query ticket failed: %v", err)
     }
     defer resp.Body.Close()
 
     body, err := io.ReadAll(resp.Body)
     if err != nil {
-        return nil, fmt.Errorf("failed to read response body: %v", err)
+        return nil, "",fmt.Errorf("failed to read response body: %v", err)
     }
-    fmt.Printf("Raw response: %s\n", string(body))
+    fmt.Printf("Raw response1: %s\n", string(body))
 
     if resp.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("query ticket failed with status code: %d", resp.StatusCode)
+        return nil, "",fmt.Errorf("query ticket failed with status code: %d", resp.StatusCode)
     }
 
     var result map[string]interface{}
     if err := json.Unmarshal(body, &result); err != nil {
-        return nil, fmt.Errorf("failed to decode response: %v", err)
+        return nil, "",fmt.Errorf("failed to decode response: %v", err)
     }
 
     data, ok := result["data"].([]interface{})
     if !ok {
-        return []string{}, nil // Return empty slice if no data
+        return []string{}, "", nil // Return empty slice if no data
     }
 
     tripIDs := make([]string, 0, len(data))
+    var tripDate string
     for _, trip := range data {
-        tripMap, ok := trip.(map[string]interface{})
-        if !ok {
-            continue
-        }
-        tripID, ok := tripMap["tripId"].(map[string]interface{})
-        if !ok {
-            continue
-        }
-        tripType, ok1 := tripID["type"].(string)
-        tripNumber, ok2 := tripID["number"].(string)
-        if !ok1 || !ok2 {
-            continue
-        }
-        tripIDs = append(tripIDs, tripType+tripNumber)
+        tripMap := trip.(map[string]interface{})
+        tripID := tripMap["tripId"].(map[string]interface{})
+        tripIDs = append(tripIDs, tripID["type"].(string)+tripID["number"].(string))
+        
+        // Extract the date from the startTime
+        startTime := tripMap["startTime"].(string)
+        tripDate = startTime[:10] // Assuming the format is "YYYY-MM-DD HH:MM:SS"
     }
 
-    return tripIDs, nil
+    return tripIDs, tripDate, nil
 }
 
 func (q *Query) QueryHighSpeedTicketParallel(placePair [2]string, date time.Time) ([]string, error) {
@@ -392,7 +386,7 @@ func (q *Query) QueryContacts() ([]string, error) {
     return contactIDs, nil
 }
 
-func (q *Query) Preserve(start, end string, tripIDs []string, isHighSpeed bool) error {
+func (q *Query) Preserve(start, end string, tripIDs []string, isHighSpeed bool, tripDate string) error {
     if len(tripIDs) == 0 {
         return fmt.Errorf("no trips available for preservation")
     }
@@ -407,9 +401,9 @@ func (q *Query) Preserve(start, end string, tripIDs []string, isHighSpeed bool) 
     payload := map[string]interface{}{
         "accountId":  q.UID,
         "contactsId": "",
-        "tripId":     RandomFromList(tripIDs),
-        "seatType":   RandomFromList([]string{"2", "3"}),
-        "date":       BaseDate.Format("2006-01-02"),
+        "tripId":     RandomFromList(tripIDs).(string),
+        "seatType":   RandomFromList([]string{"2", "3"}).(string),
+        "date":       tripDate,
         "from":       start,
         "to":         end,
         "assurance":  "0",
@@ -501,7 +495,7 @@ func (q *Query) PayOrder(orderID, tripID string) error {
     return nil
 }
 
-func (q *Query) RebookTicket(oldOrderID, oldTripID, newTripID string) error {
+func (q *Query) RebookTicket(oldOrderID, oldTripID, newTripID string, date time.Time) error {
     url := fmt.Sprintf("%s/api/v1/rebookservice/rebook", q.Address)
 
     payload := map[string]string{
