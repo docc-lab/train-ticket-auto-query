@@ -5,9 +5,9 @@ import (
     "encoding/json"
     "fmt"
     "io"
+    "log"
     "net/http"
     "time"
-    "log"
 )
 
 type Query struct {
@@ -125,14 +125,14 @@ func (q *Query) queryTicket(placePair [2]string, date time.Time, isHighSpeed boo
     defer resp.Body.Close()
 
     // Read and print the raw reponse body
-    body, err := ioutil.ReadAll(resp.Body)
+    body, err := io.ReadAll(resp.Body)
     if err != nil {
         return fmt.Errorf("failed to read respond body: %v", err)
     }
     fmt.Printf("Raw response: %s\n", string(body))
 
     // Make a new reader with body content for json.NewDecoder
-    resp.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+    resp.Body = io.NopCloser(bytes.NewBuffer(body))
 
     if resp.StatusCode != http.StatusOK {
         return nil, fmt.Errorf("query ticket failed with status code: %d", resp.StatusCode)
