@@ -394,7 +394,7 @@ func (q *Query) QueryContacts() ([]string, error) {
 
 func (q *Query) Preserve(start, end string, tripIDs []string, isHighSpeed bool) error {
     if len(tripIDs) == 0 {
-        return fmt.Errorf("no trips available for the given route")
+        return fmt.Errorf("no trips available for preservation")
     }
 
     var url string
@@ -409,7 +409,6 @@ func (q *Query) Preserve(start, end string, tripIDs []string, isHighSpeed bool) 
         "contactsId": "",
         "tripId":     RandomFromList(tripIDs),
         "seatType":   RandomFromList([]string{"2", "3"}),
-        // "date":       time.Now().Format("2006-01-02"),
         "date":       BaseDate.Format("2006-01-02"),
         "from":       start,
         "to":         end,
@@ -417,52 +416,32 @@ func (q *Query) Preserve(start, end string, tripIDs []string, isHighSpeed bool) 
         "foodType":   "0",
     }
 
-    if RandomBoolean() {
-        payload["assurance"] = "1"
+    jsonPayload, err := json.Marshal(payload)
+    if err != nil {
+        return fmt.Errorf("failed to marshal payload: %v", err)
     }
 
-    contacts, err := q.QueryContacts()
-    if err == nil && len(contacts) > 0 {
-        payload["contactsId"] = RandomFromList(contacts)
+    req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+    if err != nil {
+        return fmt.Errorf("failed to create request: %v", err)
     }
 
-    if RandomBoolean() {
-        food, err := q.QueryFood([2]string{start, end}, payload["tripId"].(string))
-        if err == nil && len(food) > 0 {
-            selectedFood := food[0]
-            for k, v := range selectedFood {
-                payload[k] = v
-            }
-        }
-    }
-
-    if RandomBoolean() {
-        payload["consigneeName"] = RandomString(10)
-        payload["consigneePhone"] = RandomPhone()
-        payload["consigneeWeight"] = RandomFromList([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
-        payload["handleDate"] = time.Now().Format("2006-01-02")
-    }
-
-    jsonPayload, _ := json.Marshal(payload)
-
-    req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
     req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("Authorization", "Bearer "+q.Token)
+
+    log.Printf("Sending preserve request to %s with payload: %s", url, string(jsonPayload))
 
     resp, err := q.Client.Do(req)
     if err != nil {
-        return err
+        return fmt.Errorf("preserve request failed: %v", err)
     }
     defer resp.Body.Close()
 
+    body, _ := ioutil.ReadAll(resp.Body)
+    log.Printf("Preserve response: %s", string(body))
+
     if resp.StatusCode != http.StatusOK {
-        return fmt.Errorf("preserve failed with status code: %d", resp.StatusCode)
-    }
-
-    var result map[string]interface{}
-    json.NewDecoder(resp.Body).Decode(&result)
-
-    if result["data"] != "Success" {
-        return fmt.Errorf("preserve failed: %v", result["data"])
+        return fmt.Errorf("preserve failed with status code: %d, body: %s", resp.StatusCode, string(body))
     }
 
     return nil
