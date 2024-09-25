@@ -361,32 +361,36 @@ func (q *Query) QueryFood(placePair [2]string, trainNum string) ([]map[string]in
 
 func (q *Query) QueryContacts() ([]string, error) {
     url := fmt.Sprintf("%s/api/v1/contactservice/contacts/account/%s", q.Address, q.UID)
-
-    req, _ := http.NewRequest("GET", url, nil)
-    resp, err := q.Client.Do(req)
+    
+    resp, err := q.Client.Get(url)
     if err != nil {
         return nil, err
     }
     defer resp.Body.Close()
 
-    if resp.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("query contacts failed with status code: %d", resp.StatusCode)
+    var result map[string]interface{}
+    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+        return nil, err
     }
 
-    var result map[string]interface{}
-    json.NewDecoder(resp.Body).Decode(&result)
+    data, ok := result["data"].([]interface{})
+    if !ok {
+        return nil, fmt.Errorf("unexpected response structure")
+    }
 
-    data := result["data"].([]interface{})
     contactIDs := make([]string, len(data))
     for i, contact := range data {
-        contactMap := contact.(map[string]interface{})
+        contactMap, ok := contact.(map[string]interface{})
+        if !ok {
+            return nil, fmt.Errorf("unexpected contact structure")
+        }
         contactIDs[i] = contactMap["id"].(string)
     }
 
     return contactIDs, nil
 }
 
-func (q *Query) Preserve(start, end string, tripIDs []string, isHighSpeed bool, tripDate string) error {
+func (q *Query) Preserve(start, end string, tripIDs []string, isHighSpeed bool, date string) error {
     if len(tripIDs) == 0 {
         return fmt.Errorf("no trips available for preservation")
     }
@@ -398,12 +402,23 @@ func (q *Query) Preserve(start, end string, tripIDs []string, isHighSpeed bool, 
         url = fmt.Sprintf("%s/api/v1/preserveotherservice/preserveOther", q.Address)
     }
 
+    contacts_result, err := q.QueryContacts()
+    if err != nil {
+        return fmt.Errorf("failed to query contacts: %v", err)
+    }
+
+    if len(contacts_result) == 0 {
+        return fmt.Errorf("no contacts found")
+    }
+
+    contactsId := RandomFromList(contacts_result).(string)
+
     payload := map[string]interface{}{
         "accountId":  q.UID,
-        "contactsId": "",
+        "contactsId": contactsId,
         "tripId":     RandomFromList(tripIDs).(string),
-        "seatType":   RandomFromList([]string{"2", "3"}).(string),
-        "date":       tripDate,
+        "seatType":   RandomFromList([]string{"2", "3"}),
+        "date":       date,
         "from":       start,
         "to":         end,
         "assurance":  "0",

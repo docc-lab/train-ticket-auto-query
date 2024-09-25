@@ -20,14 +20,9 @@ func RandomFromList(list interface{}) interface{} {
             return ""
         }
         return v[rand.Intn(len(v))]
-    case [][2]string:
+    case []interface{}:
         if len(v) == 0 {
-            return [2]string{"", ""}
-        }
-        return v[rand.Intn(len(v))]
-    case []map[string]interface{}:
-        if len(v) == 0 {
-            return map[string]interface{}{}
+            return nil
         }
         return v[rand.Intn(len(v))]
     default:
