@@ -362,7 +362,26 @@ func (q *Query) QueryFood(placePair [2]string, trainNum string) ([]map[string]in
 func (q *Query) QueryContacts() ([]string, error) {
     url := fmt.Sprintf("%s/api/v1/contactservice/contacts/account/%s", q.Address, q.UID)
     
-    resp, err := q.Client.Get(url)
+    req, err := http.NewRequest("GET", url, nil)
+    if err != nil {
+        return nil, err
+    }
+
+    // Add authorization header
+    req.Header.Set("Authorization", "Bearer "+q.Token)
+
+    resp, err := q.Client.Do(req)
+    if err != nil {
+        return nil, err
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        body, _ := io.ReadAll(resp.Body)
+        return nil, fmt.Errorf("failed to query contacts: status %d, body: %s", resp.StatusCode, string(body))
+    }
+
+    resp, err = q.Client.Get(url)
     if err != nil {
         return nil, err
     }
