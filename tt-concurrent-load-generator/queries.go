@@ -228,34 +228,60 @@ func (q *Query) QueryOrders(orderTypes []int, queryOther bool) ([][2]string, err
     payload := map[string]string{
         "loginId": q.UID,
     }
-    jsonPayload, _ := json.Marshal(payload)
+    jsonPayload, err := json.Marshal(payload)
+    if err != nil {
+        return nil, fmt.Errorf("failed to marshal payload: %v", err)
+    }
 
-    req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+    req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+    if err != nil {
+        return nil, fmt.Errorf("failed to create request: %v", err)
+    }
     req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("Authorization", "Bearer "+q.Token)  // Add authorization header
 
     resp, err := q.Client.Do(req)
     if err != nil {
-        return nil, err
+        return nil, fmt.Errorf("failed to send request: %v", err)
     }
     defer resp.Body.Close()
 
     if resp.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("query orders failed with status code: %d", resp.StatusCode)
+        body, _ := io.ReadAll(resp.Body)
+        return nil, fmt.Errorf("query orders failed with status code: %d, body: %s", resp.StatusCode, string(body))
     }
 
     var result map[string]interface{}
-    json.NewDecoder(resp.Body).Decode(&result)
+    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+        return nil, fmt.Errorf("failed to decode response: %v", err)
+    }
 
-    data := result["data"].([]interface{})
+    data, ok := result["data"].([]interface{})
+    if !ok {
+        return nil, fmt.Errorf("unexpected response structure: data is not an array")
+    }
+
     var pairs [][2]string
 
     for _, order := range data {
-        orderMap := order.(map[string]interface{})
-        status := int(orderMap["status"].(float64))
+        orderMap, ok := order.(map[string]interface{})
+        if !ok {
+            continue  // Skip this order if it's not in the expected format
+        }
+        
+        status, ok := orderMap["status"].(float64)
+        if !ok {
+            continue  // Skip this order if status is not a number
+        }
+        
         for _, t := range orderTypes {
-            if status == t {
-                pair := [2]string{orderMap["id"].(string), orderMap["trainNumber"].(string)}
-                pairs = append(pairs, pair)
+            if int(status) == t {
+                id, ok1 := orderMap["id"].(string)
+                trainNumber, ok2 := orderMap["trainNumber"].(string)
+                if ok1 && ok2 {
+                    pair := [2]string{id, trainNumber}
+                    pairs = append(pairs, pair)
+                }
                 break
             }
         }
@@ -506,26 +532,38 @@ func (q *Query) PutConsign(consignInfo map[string]interface{}) error {
 
 func (q *Query) PayOrder(orderID, tripID string) error {
     url := fmt.Sprintf("%s/api/v1/inside_pay_service/inside_payment", q.Address)
-
+    
     payload := map[string]string{
         "orderId": orderID,
         "tripId":  tripID,
     }
-    jsonPayload, _ := json.Marshal(payload)
+    
+    jsonPayload, err := json.Marshal(payload)
+    if err != nil {
+        return fmt.Errorf("failed to marshal payload: %v", err)
+    }
 
-    req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+    req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+    if err != nil {
+        return fmt.Errorf("failed to create request: %v", err)
+    }
+
     req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("Authorization", "Bearer "+q.Token)  // Ensure the token is set
 
     resp, err := q.Client.Do(req)
     if err != nil {
-        return err
+        return fmt.Errorf("failed to send request: %v", err)
     }
     defer resp.Body.Close()
 
+    body, _ := io.ReadAll(resp.Body)
+
     if resp.StatusCode != http.StatusOK {
-        return fmt.Errorf("pay order failed with status code: %d", resp.StatusCode)
+        return fmt.Errorf("pay order failed with status code: %d, body: %s", resp.StatusCode, string(body))
     }
 
+    log.Printf("Order %s paid successfully", orderID)
     return nil
 }
 

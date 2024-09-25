@@ -13,6 +13,7 @@ func RandomBoolean() bool {
     return rand.Intn(2) == 1
 }
 
+
 func RandomFromList(list interface{}) interface{} {
     switch v := list.(type) {
     case []string:
@@ -20,11 +21,31 @@ func RandomFromList(list interface{}) interface{} {
             return ""
         }
         return v[rand.Intn(len(v))]
+    case [][2]string:
+        if len(v) == 0 {
+            return [2]string{"", ""}
+        }
+        return v[rand.Intn(len(v))]
+    case []map[string]interface{}:
+        if len(v) == 0 {
+            return map[string]interface{}{}
+        }
+        return v[rand.Intn(len(v))]
     case []interface{}:
         if len(v) == 0 {
             return nil
         }
         return v[rand.Intn(len(v))]
+    case map[string]interface{}:
+        if len(v) == 0 {
+            return nil
+        }
+        keys := make([]string, 0, len(v))
+        for k := range v {
+            keys = append(keys, k)
+        }
+        randomKey := keys[rand.Intn(len(keys))]
+        return v[randomKey]
     default:
         return nil
     }

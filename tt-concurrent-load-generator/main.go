@@ -34,10 +34,10 @@ func main() {
     log.Println("Login successful")
 
     // Execute scenario on current user
-    QueryAndPreserve(q)
+    // QueryAndPreserve(q)
 
     // Commented out scenarios - uncomment to use
-    // QueryAndPay(q)
+    QueryAndPay(q)
     // QueryAndCancel(q)
     // QueryAndCollect(q)
     // QueryAndExecute(q)

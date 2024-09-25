@@ -130,21 +130,26 @@ func QueryAndPay(q *Query) {
         pairs, err = q.QueryOrders([]int{0, 1}, true)
     }
 
-    if err != nil || len(pairs) == 0 {
-        log.Println("No orders found or error occurred")
+    if err != nil {
+        log.Printf("Error querying orders: %v", err)
+        return
+    }
+
+    if len(pairs) == 0 {
+        log.Println("No orders found")
         return
     }
 
     pair := RandomFromList(pairs).([2]string)
-    orderID := pair[0]
+    orderID, tripID := pair[0], pair[1]
 
-    err = q.CancelOrder(orderID, q.UID)
+    err = q.PayOrder(orderID, tripID)
     if err != nil {
-        log.Printf("Error paying order: %v", err)
+        log.Printf("Error paying for order: %v", err)
         return
     }
 
-    log.Printf("%s queried and paid", pair[0])
+    log.Printf("Order %s queried and paid", orderID)
 }
 
 func QueryAndRebook(q *Query) {
