@@ -4,6 +4,7 @@ import (
     "bytes"
     "encoding/json"
     "fmt"
+    "io"
     "net/http"
     "time"
     "log"
@@ -50,18 +51,28 @@ func (q *Query) Login(username, password string) error {
     }
     defer resp.Body.Close()
 
+    // Read and print the raw response body
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return fmt.Errorf("failed to read response body: %v", err)
+    }
+    fmt.Printf("Raw response: %s\n", string(body))
+
+    // Create a new reader with the body content for json.NewDecoder
+    resp.Body = io.NopCloser(bytes.NewBuffer(body))
+
     if resp.StatusCode != http.StatusOK {
         return fmt.Errorf("login failed with status code: %d", resp.StatusCode)
     }
 
     var result map[string]interface{}
     if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-        return fmt.Errorf("failed to decode reponse: %v", err)
+        return fmt.Errorf("failed to decode response: %v", err)
     }
 
     data, ok := result["data"].(map[string]interface{})
     if !ok {
-        return fmt.Errorf("unexpected response structure: %v", data)
+        return fmt.Errorf("unexpected response structure: %v", result)
     }
 
     userId, ok := data["userId"].(string)
