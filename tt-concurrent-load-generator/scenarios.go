@@ -83,6 +83,7 @@ func QueryAndCollect(q *Query) {
 }
 
 func QueryAndPreserve(q *Query) {
+    log.Println("Starting QueryAndPreserve operation")
     start := ""
     end := ""
     var tripIDs []string
@@ -93,10 +94,12 @@ func QueryAndPreserve(q *Query) {
     if highSpeed {
         start = "Shang Hai"
         end = "Su Zhou"
+        log.Printf("Querying high-speed ticket from %s to %s for date %s", start, end, BaseDate.Format("2006-01-02"))
         tripIDs, tripDate, err = q.QueryHighSpeedTicket([2]string{start, end}, BaseDate)
     } else {
         start = "Shang Hai"
         end = "Nan Jing"
+        log.Printf("Querying normal ticket from %s to %s for date %s", start, end, BaseDate.Format("2006-01-02"))
         tripIDs, tripDate, err = q.QueryNormalTicket([2]string{start, end}, BaseDate)
     }
 
@@ -105,18 +108,21 @@ func QueryAndPreserve(q *Query) {
         return
     }
 
+    log.Printf("Found %d trips. Trip date: %s", len(tripIDs), tripDate)
+
     if len(tripIDs) == 0 {
         log.Printf("No trips available from %s to %s on %s", start, end, BaseDate.Format("2006-01-02"))
         return
     }
 
+    log.Println("Attempting to preserve ticket")
     err = q.Preserve(start, end, tripIDs, highSpeed, tripDate)
     if err != nil {
         log.Printf("Error preserving ticket: %v", err)
         return
     }
 
-    log.Printf("Ticket preserved from %s to %s for %s", start, end, tripDate)
+    log.Printf("Ticket preserved successfully from %s to %s for %s", start, end, tripDate)
 }
 
 func QueryAndConsign(q *Query) {

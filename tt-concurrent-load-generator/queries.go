@@ -243,34 +243,48 @@ func (q *Query) QueryOrders(orderTypes []int, queryOther bool) ([][2]string, err
     }
     jsonPayload, err := json.Marshal(payload)
     if err != nil {
+        log.Printf("Error marshaling payload: %v", err)
         return nil, fmt.Errorf("failed to marshal payload: %v", err)
     }
 
+    log.Printf("Querying orders with payload: %s", string(jsonPayload))
     req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
     if err != nil {
+        log.Printf("Error creating request: %v", err)
         return nil, fmt.Errorf("failed to create request: %v", err)
     }
     req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("Authorization", "Bearer "+q.Token)  // Add authorization header
+    req.Header.Set("Authorization", "Bearer "+q.Token)
 
     resp, err := q.Client.Do(req)
     if err != nil {
+        log.Printf("Error sending request: %v", err)
         return nil, fmt.Errorf("failed to send request: %v", err)
     }
     defer resp.Body.Close()
 
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        log.Printf("Error reading response body: %v", err)
+        return nil, fmt.Errorf("failed to read response body: %v", err)
+    }
+
+    log.Printf("Order query response: %s", string(body))
+
     if resp.StatusCode != http.StatusOK {
-        body, _ := io.ReadAll(resp.Body)
+        log.Printf("Non-OK status code: %d", resp.StatusCode)
         return nil, fmt.Errorf("query orders failed with status code: %d, body: %s", resp.StatusCode, string(body))
     }
 
     var result map[string]interface{}
-    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+    if err := json.Unmarshal(body, &result); err != nil {
+        log.Printf("Error unmarshaling JSON: %v", err)
         return nil, fmt.Errorf("failed to decode response: %v", err)
     }
 
     data, ok := result["data"].([]interface{})
     if !ok {
+        log.Printf("Unexpected response structure: %+v", result)
         return nil, fmt.Errorf("unexpected response structure: data is not an array")
     }
 
@@ -279,12 +293,14 @@ func (q *Query) QueryOrders(orderTypes []int, queryOther bool) ([][2]string, err
     for _, order := range data {
         orderMap, ok := order.(map[string]interface{})
         if !ok {
-            continue  // Skip this order if it's not in the expected format
+            log.Printf("Unexpected order structure: %+v", order)
+            continue
         }
         
         status, ok := orderMap["status"].(float64)
         if !ok {
-            continue  // Skip this order if status is not a number
+            log.Printf("Unexpected status type: %+v", orderMap["status"])
+            continue
         }
         
         for _, t := range orderTypes {
@@ -294,12 +310,15 @@ func (q *Query) QueryOrders(orderTypes []int, queryOther bool) ([][2]string, err
                 if ok1 && ok2 {
                     pair := [2]string{id, trainNumber}
                     pairs = append(pairs, pair)
+                } else {
+                    log.Printf("Missing id or trainNumber: %+v", orderMap)
                 }
                 break
             }
         }
     }
 
+    log.Printf("Found %d orders matching the criteria", len(pairs))
     return pairs, nil
 }
 
@@ -443,48 +462,57 @@ func (q *Query) QueryContacts() ([]string, error) {
     
     req, err := http.NewRequest("GET", url, nil)
     if err != nil {
-        return nil, err
+        log.Printf("Error creating request: %v", err)
+        return nil, fmt.Errorf("failed to create request: %v", err)
     }
 
-    // Add authorization header
     req.Header.Set("Authorization", "Bearer "+q.Token)
 
+    log.Printf("Sending request to %s", url)
     resp, err := q.Client.Do(req)
     if err != nil {
-        return nil, err
+        log.Printf("Error sending request: %v", err)
+        return nil, fmt.Errorf("failed to send request: %v", err)
     }
     defer resp.Body.Close()
 
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        log.Printf("Error reading response body: %v", err)
+        return nil, fmt.Errorf("failed to read response body: %v", err)
+    }
+
+    log.Printf("Response status: %d", resp.StatusCode)
+    log.Printf("Response body: %s", string(body))
+
     if resp.StatusCode != http.StatusOK {
-        body, _ := io.ReadAll(resp.Body)
+        log.Printf("Non-OK status code: %d", resp.StatusCode)
         return nil, fmt.Errorf("failed to query contacts: status %d, body: %s", resp.StatusCode, string(body))
     }
 
-    resp, err = q.Client.Get(url)
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-
     var result map[string]interface{}
-    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-        return nil, err
+    if err := json.Unmarshal(body, &result); err != nil {
+        log.Printf("Error unmarshaling JSON: %v", err)
+        return nil, fmt.Errorf("failed to unmarshal response: %v", err)
     }
 
     data, ok := result["data"].([]interface{})
     if !ok {
-        return nil, fmt.Errorf("unexpected response structure")
+        log.Printf("Unexpected response structure: %+v", result)
+        return nil, fmt.Errorf("unexpected response structure: %+v", result)
     }
 
     contactIDs := make([]string, len(data))
     for i, contact := range data {
         contactMap, ok := contact.(map[string]interface{})
         if !ok {
-            return nil, fmt.Errorf("unexpected contact structure")
+            log.Printf("Unexpected contact structure: %+v", contact)
+            return nil, fmt.Errorf("unexpected contact structure: %+v", contact)
         }
         contactIDs[i] = contactMap["id"].(string)
     }
 
+    log.Printf("Found %d contacts", len(contactIDs))
     return contactIDs, nil
 }
 
@@ -547,8 +575,13 @@ func (q *Query) Preserve(start, end string, tripIDs []string, isHighSpeed bool, 
     body, _ := io.ReadAll(resp.Body)
     log.Printf("Preserve response: %s", string(body))
 
-    if resp.StatusCode != http.StatusOK {
-        return fmt.Errorf("preserve failed with status code: %d, body: %s", resp.StatusCode, string(body))
+    var result map[string]interface{}
+    if err := json.Unmarshal(body, &result); err != nil {
+        return fmt.Errorf("failed to parse preserve response: %v", err)
+    }
+
+    if status, ok := result["status"].(float64); !ok || status != 1 {
+        return fmt.Errorf("preserve failed: %s", result["msg"])
     }
 
     return nil
