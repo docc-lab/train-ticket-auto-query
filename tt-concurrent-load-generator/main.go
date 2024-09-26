@@ -4,7 +4,14 @@ import (
     "flag"
     "log"
     "os"
+    "sync"
     "time"
+    "math/rand"
+)
+
+const (
+    ThreadCount = 4
+    ScenariosPerThread = 10
 )
 
 func main() {
@@ -37,6 +44,13 @@ func main() {
         {"QueryAndRebook", QueryAndRebook},
     }
 
+    var wg sync.WaitGroup
+
+    for i := 0; i < ThreadCount; i ++ {
+        wg.Add(1)
+        go worker(i, url, scenarios, &wg)
+    }
+
     for _, scenario := range scenarios {
         UpdateBaseDate() // Update BaseDate to a new random date before each scenario
         log.Printf("Using BaseDate %s for scenario: %s", BaseDate.Format("2006-01-02"), scenario.name)
@@ -57,7 +71,52 @@ func main() {
         time.Sleep(2 * time.Second) // Add a small delay between scenarios
     }
 
-    // Direct query executions - uncomment to use
+
+
+    if err != nil {
+        log.Printf("An error occurred: %v", err)
+    }
+}
+
+func worker(id int, url string, scenarios []struct{
+    name     string
+    function func(*Query)
+}, wg *sync.WaitGroup) {
+    defer wg.Done()
+    
+    q := NewQuery(url)
+    log.Printf("Worker %d: Attempting to login", id)
+    err := q.Login("fdse_microservice", "111111")
+    if err != nil {
+        log.Printf("Worker %d: Login failed: %v", id, err)
+        return
+    }
+    log.Printf("Worker %d: Login successful", id)
+    
+    for i := 0; i < ScenariosPerThread; i++ {
+        UpdateBaseDate() // Update BaseDate to a new random date before each scenario
+        
+        if len(scenarios) == 0 {
+            log.Printf("Worker %d: No scenarios available", id)
+            return
+        }
+        
+        randomIndex := rand.Intn(len(scenarios))
+        scenario := scenarios[randomIndex]
+        
+        if scenario.name == "" || scenario.function == nil {
+            log.Printf("Worker %d: Invalid scenario at index %d", id, randomIndex)
+            continue
+        }
+        
+        log.Printf("Worker %d: Starting scenario %d/%d: %s", id, i+1, ScenariosPerThread, scenario.name)
+        scenario.function(q)
+        log.Printf("Worker %d: Completed scenario %d/%d: %s", id, i+1, ScenariosPerThread, scenario.name)
+    }
+    log.Printf("Worker %d: Completed all %d scenarios", id, ScenariosPerThread)
+}
+
+    // Direct query executions
     // _, err = q.QueryHighSpeedTicket([2]string{"Shang Hai", "Su Zhou"}, time.Now())
     // _, err = q.QueryNormalTicket([2]string{"Shang Hai", "Nan Jing"}, time.Now())
     // _, err = q.QueryAssurances()
@@ -70,8 +129,3 @@ func main() {
     // err = q.PayOrder("some-order-id", "some-trip-id")
     // err = q.CancelOrder("some-order-id", q.UID)
     // err = q.CollectTicket("some-order-id")
-
-    if err != nil {
-        log.Printf("An error occurred: %v", err)
-    }
-}
