@@ -1,10 +1,10 @@
 package main
 
 import (
-    "flag"
     "fmt"
     "log"
     "os"
+    "strconv"
     "sync"
     "time"
     "math/rand"
@@ -28,13 +28,19 @@ func main() {
 
     ipAddr := os.Args[1]
     baseDate := os.Args[2]
-    ThreadCount, _ = strconv.Atoi(os.Args[3])
-    ScenariosPerThread, _ = strconv.Atoi(os.Args[4])
+    var err error
+    ThreadCount, err = strconv.Atoi(os.Args[3])
+    if err != nil {
+        log.Fatalf("Invalid thread count: %v", err)
+    }
+    ScenariosPerThread, err = strconv.Atoi(os.Args[4])
+    if err != nil {
+        log.Fatalf("Invalid scenarios per thread: %v", err)
+    }
 
     url := fmt.Sprintf("http://%s:8080", ipAddr)
     log.Printf("Connecting to: %s", url)
 
-    var err error
     BaseDate, err = time.Parse("2006-01-02", baseDate)
     if err != nil {
         log.Fatalf("Invalid date format: %v", err)
