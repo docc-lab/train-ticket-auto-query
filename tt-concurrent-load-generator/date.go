@@ -9,11 +9,6 @@ var BaseDate time.Time
 
 func init() {
     rand.Seed(time.Now().UnixNano())
-    var err error
-    BaseDate, err = time.Parse("2006-01-02", "2024-09-29") // Default date
-    if err != nil {
-        panic("Failed to parse base date: " + err.Error())
-    }
 }
 
 // UpdateBaseDate sets BaseDate to a random date within 30 days of the original BaseDate
