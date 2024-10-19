@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Check if all required arguments are provided
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <service-name> <burst-threshold> <burst-count>"
-    echo "Example: $0 ts-cancel-service 10 5"
+if [ "$#" -ne 4 ]; then
+    echo "Usage: $0 <service-name> <burst-threshold> <burst-count> <tag-name>"
+    echo "Example: $0 ts-cancel-service 10 5 v1.0.0"
     exit 1
 fi
 
@@ -11,6 +11,7 @@ fi
 SERVICE_NAME=$1
 BURST_THRESHOLD=$2
 BURST_COUNT=$3
+TAG_NAME=$4
 
 # Parse the service name to extract the 'xxx' part
 SERVICE_PART=$(echo $SERVICE_NAME | sed 's/ts-\(.*\)-service/\1/')
@@ -20,9 +21,6 @@ CONTROLLER_NAME="$(tr '[:lower:]' '[:upper:]' <<< ${SERVICE_PART:0:1})${SERVICE_
 
 # Construct the path
 FILE_PATH="${SERVICE_NAME}/src/main/java/${SERVICE_PART}/controller/${CONTROLLER_NAME}"
-
-# Define the tag name (you might want to adjust this logic)
-TAG_NAME="v1-burst-${BURST_THRESHOLD}-${BURST_COUNT}"
 
 # Navigate to the train-ticket directory
 cd /local/train-ticket || exit
@@ -50,4 +48,4 @@ kubectl set image "deployment/${SERVICE_NAME}" "${SERVICE_NAME}=docclabgroup/${S
 # Wait for the rollout to complete
 kubectl rollout status "deployment/${SERVICE_NAME}"
 
-echo "Deployment of ${SERVICE_NAME} with burst threshold ${BURST_THRESHOLD} and burst count ${BURST_COUNT} completed."
+echo "Deployment of ${SERVICE_NAME} with burst threshold ${BURST_THRESHOLD}, burst count ${BURST_COUNT}, and tag ${TAG_NAME} completed."
