@@ -12,7 +12,7 @@ import (
 
 var (
     ThreadCount int
-    ScenariosPerThread int
+    DurationSeconds int
 )
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
 
     // Parse command-line arguments
     if len(os.Args) != 5 {
-        fmt.Println("Usage: ./tt-concurrent-load-generator <TRAIN_TICKET_UI_IPADDR> <BASE_DATE> <NUM_THREAD> <NUM_SCENARIOS_PER_THREAD>")
+        fmt.Println("Usage: ./tt-concurrent-load-generator <TRAIN_TICKET_UI_IPADDR> <BASE_DATE> <NUM_THREADS> <DURATION_SECONDS>")
         os.Exit(1)
     }
 
@@ -33,9 +33,9 @@ func main() {
     if err != nil {
         log.Fatalf("Invalid thread count: %v", err)
     }
-    ScenariosPerThread, err = strconv.Atoi(os.Args[4])
+    DurationSeconds, err = strconv.Atoi(os.Args[4])
     if err != nil {
-        log.Fatalf("Invalid scenarios per thread: %v", err)
+        log.Fatalf("Invalid duration: %v", err)
     }
 
     url := fmt.Sprintf("http://%s:8080", ipAddr)
@@ -60,21 +60,26 @@ func main() {
     }
 
     var wg sync.WaitGroup
+    stopChan := make(chan struct{})
 
     for i := 0; i < ThreadCount; i++ {
         wg.Add(1)
-        go worker(i, url, scenarios, &wg)
+        go worker(i, url, scenarios, &wg, stopChan)
     }
+
+    // Run for the specified duration
+    time.Sleep(time.Duration(DurationSeconds) * time.Second)
+    close(stopChan)
 
     wg.Wait()
 
-    log.Println("All workers completed their scenarios")
+    log.Println("Load test completed")
 }
 
 func worker(id int, url string, scenarios []struct{
     name     string
     function func(*Query)
-}, wg *sync.WaitGroup) {
+}, wg *sync.WaitGroup, stopChan <-chan struct{}) {
     defer wg.Done()
     
     q := NewQuery(url)
@@ -86,25 +91,23 @@ func worker(id int, url string, scenarios []struct{
     }
     log.Printf("Worker %d: Login successful", id)
     
-    for i := 0; i < ScenariosPerThread; i++ {
-        UpdateBaseDate() // Update BaseDate to a new random date before each scenario
-        
-        if len(scenarios) == 0 {
-            log.Printf("Worker %d: No scenarios available", id)
+    scenarioCount := 0
+    for {
+        select {
+        case <-stopChan:
+            log.Printf("Worker %d: Stopping after executing %d scenarios", id, scenarioCount)
             return
+        default:
+            UpdateBaseDate() // Update BaseDate to a new random date before each scenario
+            
+            randomIndex := rand.Intn(len(scenarios))
+            scenario := scenarios[randomIndex]
+            
+            log.Printf("Worker %d: Starting scenario %d: %s", id, scenarioCount+1, scenario.name)
+            scenario.function(q)
+            log.Printf("Worker %d: Completed scenario %d: %s", id, scenarioCount+1, scenario.name)
+            
+            scenarioCount++
         }
-        
-        randomIndex := rand.Intn(len(scenarios))
-        scenario := scenarios[randomIndex]
-        
-        if scenario.name == "" || scenario.function == nil {
-            log.Printf("Worker %d: Invalid scenario at index %d", id, randomIndex)
-            continue
-        }
-        
-        log.Printf("Worker %d: Starting scenario %d/%d: %s", id, i+1, ScenariosPerThread, scenario.name)
-        scenario.function(q)
-        log.Printf("Worker %d: Completed scenario %d/%d: %s", id, i+1, ScenariosPerThread, scenario.name)
     }
-    log.Printf("Worker %d: Completed all %d scenarios", id, ScenariosPerThread)
 }
