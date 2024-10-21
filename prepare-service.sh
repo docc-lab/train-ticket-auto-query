@@ -24,14 +24,16 @@ FILE_PATH="${SERVICE_NAME}/src/main/java/${SERVICE_PART}/controller/${CONTROLLER
 
 # Navigate to the train-ticket directory
 cd /local/train-ticket || exit
+sudo chown -R geniuser .
 
 # Switch to the correct branch
-git fetch origin '+refs/heads/*:refs/remotes/origin/*'
-git switch cacti-exp
+sudo git fetch origin '+refs/heads/*:refs/remotes/origin/*'
+sudo git switch -c cacti-exp origin/cacti-exp
 
 # Use sed to replace BURST_THRESHOLD and BURST_COUNT in the controller file
 sed -i "s/private static final int BURST_THRESHOLD = [0-9]\+;/private static final int BURST_THRESHOLD = ${BURST_THRESHOLD};/" "$FILE_PATH"
 sed -i "s/private static final int BURST_COUNT = [0-9]\+;/private static final int BURST_COUNT = ${BURST_COUNT};/" "$FILE_PATH"
+echo "Updatec bursty variables"
 
 # Build the project
 mvn clean install -DskipTests
