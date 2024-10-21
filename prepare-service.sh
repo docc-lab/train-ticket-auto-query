@@ -26,6 +26,7 @@ FILE_PATH="${SERVICE_NAME}/src/main/java/${SERVICE_PART}/controller/${CONTROLLER
 cd /local/train-ticket || exit
 
 # Switch to the correct branch
+git fetch origin '+refs/heads/*:refs/remotes/origin/*'
 git switch cacti-exp
 
 # Use sed to replace BURST_THRESHOLD and BURST_COUNT in the controller file
