@@ -1,6 +1,7 @@
 package main
 
 import (
+    "flag"
     "fmt"
     "log"
     "os"
@@ -17,26 +18,38 @@ var (
 )
 
 func main() {
-    // Set up logging
-    log.SetOutput(os.Stdout)
-    log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-
-    // Parse command-line arguments
-    if len(os.Args) != 5 {
-        fmt.Println("Usage: ./tt-concurrent-load-generator <TRAIN_TICKET_UI_IPADDR> <BASE_DATE> <NUM_THREADS> <DURATION_SECONDS>")
-        os.Exit(1)
+    // Add warm-up flag
+    isWarmup := flag.Bool("warmup", false, "Run in warm-up mode")
+    flag.Parse()
+    
+    args := flag.Args()
+    
+    // Check arguments based on mode
+    if *isWarmup {
+        if len(args) != 3 {
+            fmt.Println("Warm-up mode usage: ./tt-concurrent-load-generator -warmup <TRAIN_TICKET_UI_IPADDR> <BASE_DATE> <NUM_THREADS>")
+            os.Exit(1)
+        }
+    } else {
+        if len(args) != 4 {
+            fmt.Println("Load test mode usage: ./tt-concurrent-load-generator <TRAIN_TICKET_UI_IPADDR> <BASE_DATE> <NUM_THREADS> <DURATION_SECONDS>")
+            os.Exit(1)
+        }
     }
 
-    ipAddr := os.Args[1]
-    baseDate := os.Args[2]
+    ipAddr := args[0]
+    baseDate := args[1]
     var err error
-    ThreadCount, err = strconv.Atoi(os.Args[3])
+    ThreadCount, err = strconv.Atoi(args[2])
     if err != nil {
         log.Fatalf("Invalid thread count: %v", err)
     }
-    DurationSeconds, err = strconv.Atoi(os.Args[4])
-    if err != nil {
-        log.Fatalf("Invalid duration: %v", err)
+
+    if !*isWarmup {
+        DurationSeconds, err = strconv.Atoi(args[3])
+        if err != nil {
+            log.Fatalf("Invalid duration: %v", err)
+        }
     }
 
     url := fmt.Sprintf("http://%s:8080", ipAddr)
@@ -47,6 +60,38 @@ func main() {
         log.Fatalf("Invalid date format: %v", err)
     }
 
+    if *isWarmup {
+        runWarmup(url)
+    } else {
+        runLoadTest(url)
+    }
+}
+
+func runWarmup(url string) {
+    log.Println("Starting warm-up session...")
+    
+    var wg sync.WaitGroup
+    counter := NewWarmupCounter()
+    startTime := time.Now()
+    
+    for i := 0; i < ThreadCount; i++ {
+        wg.Add(1)
+        go WarmupWorker(i, url, &wg, counter)
+    }
+    
+    wg.Wait()
+    duration := time.Since(startTime)
+    
+    log.Printf("Warm-up completed in %v. Created orders:", duration)
+    log.Printf("- Unpaid orders: %d (target: 2000)", counter.unpaidCount)
+    log.Printf("- Paid orders: %d (target: 1000)", counter.paidCount)
+    log.Printf("- Collected orders: %d (target: 1000)", counter.collectedCount)
+    log.Printf("- Consigned orders: %d (target: 1000)", counter.consignedCount)
+    log.Printf("Total orders created: %d", counter.getTotalCount())
+}
+
+func runLoadTest(url string) {
+    // Original load test logic
     scenarios := []struct {
         name     string
         function func(*Query)
