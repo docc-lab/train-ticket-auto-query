@@ -21,19 +21,19 @@ func NewWarmupCounter() *WarmupCounter {
 }
 
 func (w *WarmupCounter) canCreateUnpaid() bool {
-    return atomic.LoadInt32(&w.unpaidCount) < 2000
+    return atomic.LoadInt32(&w.unpaidCount) < 1000
 }
 
 func (w *WarmupCounter) canCreatePaid() bool {
-    return atomic.LoadInt32(&w.paidCount) < 1000
+    return atomic.LoadInt32(&w.paidCount) < 500
 }
 
 func (w *WarmupCounter) canCreateCollected() bool {
-    return atomic.LoadInt32(&w.collectedCount) < 1000
+    return atomic.LoadInt32(&w.collectedCount) < 500
 }
 
 func (w *WarmupCounter) canCreateConsigned() bool {
-    return atomic.LoadInt32(&w.consignedCount) < 1000
+    return atomic.LoadInt32(&w.consignedCount) < 500
 }
 
 func (w *WarmupCounter) incrementUnpaid() {
