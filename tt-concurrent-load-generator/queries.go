@@ -346,7 +346,7 @@ func (q *Query) CancelOrder(orderID, uuid string) error {
         }
         defer resp.Body.Close()
 
-        body, _ := io.ReadAll(resp.Body)
+        // body, _ := io.ReadAll(resp.Body)
         // log.Printf("Cancel order response (attempt %d): %s", i+1, string(body))
 
         if resp.StatusCode == http.StatusOK {
