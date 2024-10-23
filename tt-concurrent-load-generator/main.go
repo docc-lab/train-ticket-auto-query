@@ -13,6 +13,7 @@ import (
 var (
     ThreadCount int
     DurationSeconds int
+    stats          *ScenarioStats
 )
 
 func main() {
@@ -59,6 +60,9 @@ func main() {
         {"QueryAndRebook", QueryAndRebook},
     }
 
+    // Initialize statistics tracking
+    stats = NewScenarioStats()
+
     var wg sync.WaitGroup
     stopChan := make(chan struct{})
 
@@ -73,6 +77,8 @@ func main() {
 
     wg.Wait()
 
+    // Print statistics
+    log.Println(stats.GetStats())
     log.Println("Load test completed")
 }
 
@@ -105,6 +111,7 @@ func worker(id int, url string, scenarios []struct{
             
             log.Printf("Worker %d: Starting scenario %d: %s", id, scenarioCount+1, scenario.name)
             scenario.function(q)
+            stats.IncrementScenario(id, scenario.name)
             log.Printf("Worker %d: Completed scenario %d: %s", id, scenarioCount+1, scenario.name)
             
             scenarioCount++
