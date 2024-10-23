@@ -91,7 +91,6 @@ func WarmupWorker(id int, url string, wg *sync.WaitGroup, counter *WarmupCounter
 
         UpdateBaseDate() // Update BaseDate to a new random date
 
-        // Try to create orders in priority order based on what's needed
         var err error
         switch {
         case counter.canCreateUnpaid():

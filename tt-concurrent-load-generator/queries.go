@@ -95,7 +95,7 @@ func (q *Query) Login(username, password string) error {
     if err != nil {
         return fmt.Errorf("failed to read response body: %v", err)
     }
-    fmt.Printf("Raw response2: %s\n", string(body))
+    // fmt.Printf("Raw response2: %s\n", string(body))
 
     if resp.StatusCode != http.StatusOK {
         return fmt.Errorf("login failed with status code: %d", resp.StatusCode)
@@ -163,7 +163,7 @@ func (q *Query) queryTicket(placePair [2]string, date time.Time, isHighSpeed boo
     if err != nil {
         return nil, "",fmt.Errorf("failed to read response body: %v", err)
     }
-    fmt.Printf("Raw response1: %s\n", string(body))
+    // fmt.Printf("Raw response1: %s\n", string(body))
 
     if resp.StatusCode != http.StatusOK {
         return nil, "",fmt.Errorf("query ticket failed with status code: %d", resp.StatusCode)
@@ -269,7 +269,7 @@ func (q *Query) QueryOrders(orderTypes []int, queryOther bool) ([][2]string, err
         return nil, fmt.Errorf("failed to read response body: %v", err)
     }
 
-    log.Printf("Order query response: %s", string(body))
+    // log.Printf("Order query response: %s", string(body))
 
     if resp.StatusCode != http.StatusOK {
         log.Printf("Non-OK status code: %d", resp.StatusCode)
@@ -347,7 +347,7 @@ func (q *Query) CancelOrder(orderID, uuid string) error {
         defer resp.Body.Close()
 
         body, _ := io.ReadAll(resp.Body)
-        log.Printf("Cancel order response (attempt %d): %s", i+1, string(body))
+        // log.Printf("Cancel order response (attempt %d): %s", i+1, string(body))
 
         if resp.StatusCode == http.StatusOK {
             log.Printf("Order %s successfully canceled", orderID)
@@ -375,7 +375,7 @@ func (q *Query) CollectTicket(orderID string) error {
     defer resp.Body.Close()
 
     body, _ := io.ReadAll(resp.Body)
-    log.Printf("Collect ticket response for order %s: %s", orderID, string(body))
+    // log.Printf("Collect ticket response for order %s: %s", orderID, string(body))
 
     if resp.StatusCode != http.StatusOK {
         return fmt.Errorf("collect ticket failed with status code: %d, body: %s", resp.StatusCode, string(body))
@@ -403,7 +403,7 @@ func (q *Query) EnterStation(orderID string) error {
     defer resp.Body.Close()
 
     body, _ := io.ReadAll(resp.Body)
-    log.Printf("Enter station response for order %s: %s", orderID, string(body))
+    // log.Printf("Enter station response for order %s: %s", orderID, string(body))
 
     if resp.StatusCode != http.StatusOK {
         return fmt.Errorf("enter station failed with status code: %d, body: %s", resp.StatusCode, string(body))
@@ -483,7 +483,7 @@ func (q *Query) QueryContacts() ([]string, error) {
     }
 
     log.Printf("Response status: %d", resp.StatusCode)
-    log.Printf("Response body: %s", string(body))
+    // log.Printf("Response body: %s", string(body))
 
     if resp.StatusCode != http.StatusOK {
         log.Printf("Non-OK status code: %d", resp.StatusCode)
@@ -573,7 +573,7 @@ func (q *Query) Preserve(start, end string, tripIDs []string, isHighSpeed bool, 
     defer resp.Body.Close()
 
     body, _ := io.ReadAll(resp.Body)
-    log.Printf("Preserve response: %s", string(body))
+    // log.Printf("Preserve response: %s", string(body))
 
     var result map[string]interface{}
     if err := json.Unmarshal(body, &result); err != nil {
@@ -709,7 +709,7 @@ func (q *Query) RebookTicket(oldOrderID, oldTripID, newTripID, newDate, newSeatT
     defer resp.Body.Close()
 
     body, _ := io.ReadAll(resp.Body)
-    log.Printf("Rebook response: %s", string(body))
+    // log.Printf("Rebook response: %s", string(body))
 
     var result map[string]interface{}
     if err := json.Unmarshal(body, &result); err != nil {
