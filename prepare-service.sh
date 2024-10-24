@@ -2,6 +2,7 @@
 
 # Check if all required arguments are provided
 if [ "$#" -ne 5 ]; then
+    echo "Prerequiste: 1. install maven, 2.login to dockerhub use `docker login`, 3. make sure train-ticket repo is already in cacti-exp branch"
     echo "Usage: $0 <service-name> <burst-threshold> <burst-rate> <burst-duration> <tag-name>"
     echo "Example: $0 ts-cancel-service 10 5 10 v1.0.0"
     exit 1
@@ -28,8 +29,9 @@ cd /local/train-ticket || exit
 sudo chown -R $(whoami) .
 
 # Switch to the correct branch
-git fetch origin '+refs/heads/*:refs/remotes/origin/*'
-git switch -c cacti-exp origin/cacti-exp
+# git fetch origin '+refs/heads/*:refs/remotes/origin/*'
+# git switch -c cacti-exp origin/cacti-exp
+git switch cacti-exp
 
 # Use sed to replace burst parameters in the controller file
 sed -i "s/private static final int BURST_THRESHOLD = [0-9]\+;/private static final int BURST_THRESHOLD = ${BURST_THRESHOLD};/" "$FILE_PATH"
