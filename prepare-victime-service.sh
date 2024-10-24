@@ -9,19 +9,12 @@ fi
 SERVICE_NAME=$1
 TAG_NAME=$2
 
-# Parse the service name to extract the 'xxx' part
-SERVICE_PART=$(echo $SERVICE_NAME | sed 's/ts-\(.*\)-service/\1/')
-
-# Construct the path
-FILE_PATH="${SERVICE_NAME}/src/main/java/${SERVICE_PART}/controller/${CONTROLLER_NAME}"
-
 # Navigate to the train-ticket directory
 cd /local/train-ticket || exit
 sudo chown -R $(whoami) .
 
 # Switch to the correct branch
 git switch cacti-exp
-
 
 # Build the project
 mvn clean install -DskipTests
