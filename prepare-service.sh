@@ -1,17 +1,18 @@
 #!/bin/bash
 
 # Check if all required arguments are provided
-if [ "$#" -ne 4 ]; then
-    echo "Usage: $0 <service-name> <burst-threshold> <burst-count> <tag-name>"
-    echo "Example: $0 ts-cancel-service 10 5 v1.0.0"
+if [ "$#" -ne 5 ]; then
+    echo "Usage: $0 <service-name> <burst-threshold> <burst-rate> <burst-duration> <tag-name>"
+    echo "Example: $0 ts-cancel-service 10 5 10 v1.0.0"
     exit 1
 fi
 
 # Assign arguments to variables
 SERVICE_NAME=$1
 BURST_THRESHOLD=$2
-BURST_COUNT=$3
-TAG_NAME=$4
+BURST_REQUESTS_PER_SEC=$3
+BURST_DURATION_SECONDS=$4
+TAG_NAME=$5
 
 # Parse the service name to extract the 'xxx' part
 SERVICE_PART=$(echo $SERVICE_NAME | sed 's/ts-\(.*\)-service/\1/')
@@ -30,10 +31,11 @@ sudo chown -R $(whoami) .
 git fetch origin '+refs/heads/*:refs/remotes/origin/*'
 git switch -c cacti-exp origin/cacti-exp
 
-# Use sed to replace BURST_THRESHOLD and BURST_COUNT in the controller file
+# Use sed to replace burst parameters in the controller file
 sed -i "s/private static final int BURST_THRESHOLD = [0-9]\+;/private static final int BURST_THRESHOLD = ${BURST_THRESHOLD};/" "$FILE_PATH"
-sed -i "s/private static final int BURST_COUNT = [0-9]\+;/private static final int BURST_COUNT = ${BURST_COUNT};/" "$FILE_PATH"
-echo "Updatec bursty variables"
+sed -i "s/private static final int BURST_REQUESTS_PER_SEC = [0-9]\+;/private static final int BURST_REQUESTS_PER_SEC = ${BURST_REQUESTS_PER_SEC};/" "$FILE_PATH"
+sed -i "s/private static final int BURST_DURATION_SECONDS = [0-9]\+;/private static final int BURST_DURATION_SECONDS = ${BURST_DURATION_SECONDS};/" "$FILE_PATH"
+echo "Updated burst variables"
 
 # Build the project
 mvn clean install -DskipTests
@@ -51,4 +53,4 @@ kubectl set image "deployment/${SERVICE_NAME}" "${SERVICE_NAME}=docclabgroup/${S
 # Wait for the rollout to complete
 kubectl rollout status "deployment/${SERVICE_NAME}"
 
-echo "Deployment of ${SERVICE_NAME} with burst threshold ${BURST_THRESHOLD}, burst count ${BURST_COUNT}, and tag ${TAG_NAME} completed."
+echo "Deployment of ${SERVICE_NAME} with burst threshold ${BURST_THRESHOLD}, burst rate ${BURST_REQUESTS_PER_SEC} req/s, burst duration ${BURST_DURATION_SECONDS}s, and tag ${TAG_NAME} completed."
