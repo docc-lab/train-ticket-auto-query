@@ -15,6 +15,7 @@ sudo chown -R $(whoami) .
 
 # Switch to the correct branch
 git switch cacti-exp
+git pull origin cacti-exp
 
 # Build the project
 mvn clean install -DskipTests

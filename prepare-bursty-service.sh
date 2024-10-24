@@ -32,6 +32,7 @@ sudo chown -R $(whoami) .
 # git fetch origin '+refs/heads/*:refs/remotes/origin/*'
 # git switch -c cacti-exp origin/cacti-exp
 git switch cacti-exp
+git pull origin cacti-exp
 
 # Use sed to replace burst parameters in the controller file
 sed -i "s/private static final int BURST_THRESHOLD = [0-9]\+;/private static final int BURST_THRESHOLD = ${BURST_THRESHOLD};/" "$FILE_PATH"
