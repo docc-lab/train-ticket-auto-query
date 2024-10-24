@@ -1,4 +1,4 @@
-if [ "$#" -ne 5 ]; then
+if [ "$#" -ne 2 ]; then
     echo "Prerequiste: 1. install maven, 2.login to dockerhub use "docker login", 3. make sure train-ticket repo is already in cacti-exp branch"
     echo "For non-parameter tuning service--just build, push, and replace image."
     echo "Usage: $0 <service-name> <tag-name>"
