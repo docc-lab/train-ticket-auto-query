@@ -97,7 +97,7 @@ func WarmupWorker(id int, url string, wg *sync.WaitGroup, counter *WarmupCounter
             err = createUnpaidOrder(q)
             if err == nil {
                 counter.incrementUnpaid()
-                log.Printf("Worker %d: Created unpaid order. Total unpaid: %d/2000", 
+                log.Printf("Worker %d: Created unpaid order. Total unpaid: %d/1000", 
                     id, atomic.LoadInt32(&counter.unpaidCount))
             }
 
@@ -105,7 +105,7 @@ func WarmupWorker(id int, url string, wg *sync.WaitGroup, counter *WarmupCounter
             err = createPaidOrder(q)
             if err == nil {
                 counter.incrementPaid()
-                log.Printf("Worker %d: Created paid order. Total paid: %d/1000", 
+                log.Printf("Worker %d: Created paid order. Total paid: %d/500", 
                     id, atomic.LoadInt32(&counter.paidCount))
             }
 
@@ -113,7 +113,7 @@ func WarmupWorker(id int, url string, wg *sync.WaitGroup, counter *WarmupCounter
             err = createCollectedOrder(q)
             if err == nil {
                 counter.incrementCollected()
-                log.Printf("Worker %d: Created collected order. Total collected: %d/1000", 
+                log.Printf("Worker %d: Created collected order. Total collected: %d/500", 
                     id, atomic.LoadInt32(&counter.collectedCount))
             }
 
@@ -121,7 +121,7 @@ func WarmupWorker(id int, url string, wg *sync.WaitGroup, counter *WarmupCounter
             err = createConsignedOrder(q)
             if err == nil {
                 counter.incrementConsigned()
-                log.Printf("Worker %d: Created consigned order. Total consigned: %d/1000", 
+                log.Printf("Worker %d: Created consigned order. Total consigned: %d/500", 
                     id, atomic.LoadInt32(&counter.consignedCount))
             }
 
