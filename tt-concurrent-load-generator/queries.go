@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
 	_url "net/url"
@@ -241,7 +242,7 @@ func (q *Query) QueryHighSpeedTicketParallel(placePair [2]string, date time.Time
 }
 
 func (q *Query) QueryOrders(orderTypes []int, queryOther bool) ([][2]string, error) {
-	if time.Now().After(q.OCTime.Add(time.Second * 10)) {
+	if time.Now().After(q.OCTime.Add(time.Second * time.Duration(rand.Intn(10)+20))) {
 		var url string
 		if queryOther {
 			url = fmt.Sprintf("%s/api/v1/orderOtherService/orderOther/refresh", q.Address)
