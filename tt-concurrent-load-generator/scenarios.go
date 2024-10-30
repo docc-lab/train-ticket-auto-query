@@ -13,7 +13,7 @@ func QueryAndCancel(q *Query) {
 	pairs := make([][2]string, 0)
 	var err error
 
-	rfw := RandomFromWeighted(highspeedWeights)
+	//rfw := RandomFromWeighted(highspeedWeights)
 
 	//if len(pairs) == 0 {
 	//    log.Println("No orders found for cancellation")
@@ -21,7 +21,8 @@ func QueryAndCancel(q *Query) {
 	//}
 
 	for len(pairs) == 0 {
-		if rfw {
+		//if rfw {
+		if RandomFromWeighted(highspeedWeights) {
 			log.Println("Querying high-speed orders")
 			pairs, err = q.QueryOrders([]int{0, 1}, false)
 		} else {
