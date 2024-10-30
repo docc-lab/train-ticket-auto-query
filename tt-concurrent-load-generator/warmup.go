@@ -66,7 +66,7 @@ func WarmupWorker(id int, url string, wg *sync.WaitGroup, counter *WarmupCounter
     
     q := NewQuery(url)
     for retryCount < maxRetries {
-        // err := q.Login("test0", "111111")
+        // err := q.Login("test1", "111111")
         err := q.Login("fdse_microservice", "111111")
         if err != nil {
             log.Printf("Worker %d: Login attempt %d failed: %v", id, retryCount+1, err)
