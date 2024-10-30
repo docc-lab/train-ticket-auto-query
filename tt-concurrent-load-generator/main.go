@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"golang.org/x/sync/semaphore"
 	"log"
 	"math/rand"
 	"os"
@@ -17,6 +19,7 @@ var (
 	DurationSeconds int
 	stats           *ScenarioStats
 	activeScenarios []byte
+	sem             *semaphore.Weighted
 )
 
 func main() {
@@ -143,6 +146,8 @@ func runLoadTest(url string) {
 	var wg sync.WaitGroup
 	stopChan := make(chan struct{})
 
+	sem = semaphore.NewWeighted(int64(ThreadCount))
+
 	for i := 0; i < ThreadCount; i++ {
 		wg.Add(1)
 		go worker(i, url, scenarios, &wg, stopChan)
@@ -176,9 +181,14 @@ func worker(id int, url string, scenarios []struct {
 
 	scenarioCount := 0
 	for {
+		_ = sem.Acquire(context.Background(), 1)
+
 		select {
 		case <-stopChan:
 			log.Printf("Worker %d: Stopping after executing %d scenarios", id, scenarioCount)
+
+			sem.Release(1)
+
 			return
 		default:
 			UpdateBaseDate() // Update BaseDate to a new random date before each scenario
@@ -193,5 +203,7 @@ func worker(id int, url string, scenarios []struct {
 
 			scenarioCount++
 		}
+
+		sem.Release(1)
 	}
 }
