@@ -305,68 +305,70 @@ func (q *Query) QueryOrders(orderTypes []int, queryOther bool) ([][2]string, err
 			return nil, fmt.Errorf("unexpected response structure: data is not an array")
 		}
 
-		if queryOther {
-			q.OrdersCacheOther = make([]struct {
-				Data [2]string
-				Type int
-			}, 0)
-			q.OCTimeOther = time.Now()
+		if len(data) > 0 {
+			if queryOther {
+				q.OrdersCacheOther = make([]struct {
+					Data [2]string
+					Type int
+				}, 0)
+				q.OCTimeOther = time.Now()
 
-			for _, order := range data {
-				orderMap, ok := order.(map[string]interface{})
-				if !ok {
-					log.Printf("Unexpected order structure: %+v", order)
-					continue
+				for _, order := range data {
+					orderMap, ok := order.(map[string]interface{})
+					if !ok {
+						log.Printf("Unexpected order structure: %+v", order)
+						continue
+					}
+
+					status, ok := orderMap["status"].(float64)
+					if !ok {
+						log.Printf("Unexpected status type: %+v", orderMap["status"])
+						continue
+					}
+
+					id, ok1 := orderMap["id"].(string)
+					trainNumber, ok2 := orderMap["trainNumber"].(string)
+					if ok1 && ok2 {
+						pair := [2]string{id, trainNumber}
+						q.OrdersCacheOther = append(q.OrdersCacheOther, struct {
+							Data [2]string
+							Type int
+						}{Data: pair, Type: int(status)})
+					} else {
+						log.Printf("Missing id or trainNumber: %+v", orderMap)
+					}
 				}
+			} else {
+				q.OrdersCache = make([]struct {
+					Data [2]string
+					Type int
+				}, 0)
+				q.OCTime = time.Now()
 
-				status, ok := orderMap["status"].(float64)
-				if !ok {
-					log.Printf("Unexpected status type: %+v", orderMap["status"])
-					continue
-				}
+				for _, order := range data {
+					orderMap, ok := order.(map[string]interface{})
+					if !ok {
+						log.Printf("Unexpected order structure: %+v", order)
+						continue
+					}
 
-				id, ok1 := orderMap["id"].(string)
-				trainNumber, ok2 := orderMap["trainNumber"].(string)
-				if ok1 && ok2 {
-					pair := [2]string{id, trainNumber}
-					q.OrdersCacheOther = append(q.OrdersCacheOther, struct {
-						Data [2]string
-						Type int
-					}{Data: pair, Type: int(status)})
-				} else {
-					log.Printf("Missing id or trainNumber: %+v", orderMap)
-				}
-			}
-		} else {
-			q.OrdersCache = make([]struct {
-				Data [2]string
-				Type int
-			}, 0)
-			q.OCTime = time.Now()
+					status, ok := orderMap["status"].(float64)
+					if !ok {
+						log.Printf("Unexpected status type: %+v", orderMap["status"])
+						continue
+					}
 
-			for _, order := range data {
-				orderMap, ok := order.(map[string]interface{})
-				if !ok {
-					log.Printf("Unexpected order structure: %+v", order)
-					continue
-				}
-
-				status, ok := orderMap["status"].(float64)
-				if !ok {
-					log.Printf("Unexpected status type: %+v", orderMap["status"])
-					continue
-				}
-
-				id, ok1 := orderMap["id"].(string)
-				trainNumber, ok2 := orderMap["trainNumber"].(string)
-				if ok1 && ok2 {
-					pair := [2]string{id, trainNumber}
-					q.OrdersCache = append(q.OrdersCache, struct {
-						Data [2]string
-						Type int
-					}{Data: pair, Type: int(status)})
-				} else {
-					log.Printf("Missing id or trainNumber: %+v", orderMap)
+					id, ok1 := orderMap["id"].(string)
+					trainNumber, ok2 := orderMap["trainNumber"].(string)
+					if ok1 && ok2 {
+						pair := [2]string{id, trainNumber}
+						q.OrdersCache = append(q.OrdersCache, struct {
+							Data [2]string
+							Type int
+						}{Data: pair, Type: int(status)})
+					} else {
+						log.Printf("Missing id or trainNumber: %+v", orderMap)
+					}
 				}
 			}
 		}
