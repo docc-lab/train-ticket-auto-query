@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"golang.org/x/sync/semaphore"
 	"log"
 	"math/rand"
 	"os"
@@ -17,6 +19,7 @@ var (
 	DurationSeconds int
 	stats           *ScenarioStats
 	activeScenarios []byte
+	sem             *semaphore.Weighted
 )
 
 func main() {
@@ -143,6 +146,15 @@ func runLoadTest(url string) {
 	var wg sync.WaitGroup
 	stopChan := make(chan struct{})
 
+	sem = semaphore.NewWeighted(int64(ThreadCount))
+
+	// Initialize order cache manager
+	InitOCM()
+
+	go dataFetchWorker(url, &wg, stopChan)
+
+	time.Sleep(time.Second)
+
 	for i := 0; i < ThreadCount; i++ {
 		wg.Add(1)
 		go worker(i, url, scenarios, &wg, stopChan)
@@ -176,9 +188,14 @@ func worker(id int, url string, scenarios []struct {
 
 	scenarioCount := 0
 	for {
+		_ = sem.Acquire(context.Background(), 1)
+
 		select {
 		case <-stopChan:
 			log.Printf("Worker %d: Stopping after executing %d scenarios", id, scenarioCount)
+
+			sem.Release(1)
+
 			return
 		default:
 			UpdateBaseDate() // Update BaseDate to a new random date before each scenario
@@ -192,6 +209,50 @@ func worker(id int, url string, scenarios []struct {
 			log.Printf("Worker %d: Completed scenario %d: %s", id, scenarioCount+1, scenario.name)
 
 			scenarioCount++
+		}
+
+		sem.Release(1)
+	}
+}
+
+func dataFetchWorker(url string, wg *sync.WaitGroup, stopChan <-chan struct{}) {
+	defer wg.Done()
+
+	acquired := 0
+
+	q := NewQuery(url)
+	log.Printf("Order query worker: Attempting to login")
+	err := q.Login("fdse_microservice", "111111")
+	if err != nil {
+		log.Printf("Order query worker: Login failed: %v", err)
+		return
+	}
+	log.Printf("Order query worker: Login successful")
+
+	for {
+		select {
+		case <-stopChan:
+			log.Printf("Order query worker stopping!")
+			return
+		default:
+			if acquired == ThreadCount {
+				log.Printf("ACQUIRED ALL RESOURCES FOR CACHE UPDATE")
+				UpdateOrderCache(q)
+				OCManager.QuerySem.Release(int64(ThreadCount))
+				acquired = 0
+				log.Printf("Order query worker: Attempting to login")
+				err := q.Login("fdse_microservice", "111111")
+				if err != nil {
+					log.Printf("Order query worker: Login failed: %v", err)
+					return
+				}
+				log.Printf("Order query worker: Login successful")
+				time.Sleep(time.Second * time.Duration(rand.Intn(10)+20))
+			} else {
+				_ = OCManager.QuerySem.Acquire(context.Background(), 1)
+				acquired += 1
+				log.Printf("Total cache update resources acquired: [ %v ]", acquired)
+			}
 		}
 	}
 }
