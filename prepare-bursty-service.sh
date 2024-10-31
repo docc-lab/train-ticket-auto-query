@@ -26,7 +26,22 @@ SERVICE_PART=$(echo $SERVICE_NAME | sed 's/ts-\(.*\)-service/\1/')
 CONTROLLER_NAME="$(tr '[:lower:]' '[:upper:]' <<< ${SERVICE_PART:0:1})${SERVICE_PART:1}Controller.java"
 
 # Construct the path
-FILE_PATH="${SERVICE_NAME}/src/main/java/${SERVICE_PART}/controller/${CONTROLLER_NAME}"
+# FILE_PATH="${SERVICE_NAME}/src/main/java/${SERVICE_PART}/controller/${CONTROLLER_NAME}"
+# handle unconsistent dir structure in some service
+get_controller_path() {
+    local service=$1
+    local service_part=$(echo $service | sed 's/ts-\(.*\)-service/\1/')
+    local controller_name="$(tr '[:lower:]' '[:upper:]' <<< ${service_part:0:1})${service_part:1}Controller.java"
+    
+    # Check if it's basic service which has different path
+    if [ "$service" = "ts-basic-service" ]; then
+        echo "${service}/src/main/java/fdse/microservice/controller/${controller_name}"
+    else
+        echo "${service}/src/main/java/${service_part}/controller/${controller_name}"
+    fi
+}
+
+FILE_PATH=$(get_controller_path "$SERVICE_NAME")
 
 # Navigate to the train-ticket directory
 cd /local/train-ticket || exit
