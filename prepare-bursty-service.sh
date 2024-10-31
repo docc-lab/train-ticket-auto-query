@@ -41,15 +41,43 @@ get_controller_path() {
     fi
 }
 
-FILE_PATH=$(get_controller_path "$SERVICE_NAME")
-
 # Navigate to the train-ticket directory
 cd /local/train-ticket || exit
 sudo chown -R $(whoami) .
 
 # Switch to the correct branch
-git switch exp-dev
-git pull origin exp-dev
+# git switch exp-dev
+# git pull origin exp-dev
+
+# Function to clean up any local changes and update to latest remote version
+cleanup_and_update() {
+    echo "Cleaning up local changes..."
+    git restore . 2>/dev/null || true
+    git clean -fd 2>/dev/null || true
+    
+    echo "Switching to exp-dev branch..."
+    git switch exp-dev
+    
+    echo "Pulling latest changes..."
+    git pull origin exp-dev --ff-only
+    
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to update to latest version. Exiting."
+        exit 1
+    fi
+}
+
+# Initial cleanup and update
+cleanup_and_update
+
+# Get the appropriate file path
+FILE_PATH=$(get_controller_path "$SERVICE_NAME")
+
+# Check if file exists
+if [ ! -f "$FILE_PATH" ]; then
+    echo "Error: Controller file not found at $FILE_PATH"
+    exit 1
+fi
 
 # Use sed to replace burst parameters in the controller file
 sed -i "s/private static final int BURSTY_PERIOD_SECONDS = [0-9]\+;/private static final int BURSTY_PERIOD_SECONDS = ${BURSTY_PERIOD_SECONDS};/" "$FILE_PATH"
