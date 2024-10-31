@@ -249,8 +249,9 @@ func dataFetchWorker(url string, wg *sync.WaitGroup, stopChan <-chan struct{}) {
 				log.Printf("Order query worker: Login successful")
 				time.Sleep(time.Second * time.Duration(rand.Intn(10)+20))
 			} else {
-				_ = OCManager.QuerySem.Acquire(context.Background(), int64(ThreadCount))
+				_ = OCManager.QuerySem.Acquire(context.Background(), 1)
 				acquired += 1
+				log.Printf("Total cache update resources acquired: [ %v ]", acquired)
 			}
 		}
 	}
