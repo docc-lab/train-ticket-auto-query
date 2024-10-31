@@ -2,11 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
 	_url "net/url"
@@ -250,124 +250,126 @@ func (q *Query) QueryHighSpeedTicketParallel(placePair [2]string, date time.Time
 }
 
 func (q *Query) QueryOrders(orderTypes []int, queryOther bool) ([][2]string, error) {
-	cmpTime := q.OCTime
-	if queryOther {
-		cmpTime = q.OCTimeOther
-	}
-
-	if time.Now().After(cmpTime.Add(time.Second * time.Duration(rand.Intn(10)+20))) {
-		var url string
-		if queryOther {
-			url = fmt.Sprintf("%s/api/v1/orderOtherService/orderOther/refresh", q.Address)
-		} else {
-			url = fmt.Sprintf("%s/api/v1/orderservice/order/refresh", q.Address)
-		}
-
-		payload := map[string]string{
-			"loginId": q.UID,
-		}
-		jsonPayload, err := json.Marshal(payload)
-		if err != nil {
-			log.Printf("Error marshaling payload: %v", err)
-			return nil, fmt.Errorf("failed to marshal payload: %v", err)
-		}
-
-		log.Printf("Querying orders with payload: %s", string(jsonPayload))
-		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
-		if err != nil {
-			log.Printf("Error creating request: %v", err)
-			return nil, fmt.Errorf("failed to create request: %v", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+q.Token)
-
-		resp, err := q.Client.Do(req)
-		if err != nil {
-			log.Printf("Error sending request: %v", err)
-			return nil, fmt.Errorf("failed to send request: %v", err)
-		}
-		defer resp.Body.Close()
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			log.Printf("Error reading response body: %v", err)
-			return nil, fmt.Errorf("failed to read response body: %v", err)
-		}
-
-		// log.Printf("Order query response: %s", string(body))
-
-		if resp.StatusCode != http.StatusOK {
-			log.Printf("Non-OK status code: %d", resp.StatusCode)
-			return nil, fmt.Errorf("query orders failed with status code: %d, body: %s", resp.StatusCode, string(body))
-		}
-
-		var result map[string]interface{}
-		if err := json.Unmarshal(body, &result); err != nil {
-			log.Printf("Error unmarshaling JSON: %v", err)
-			return nil, fmt.Errorf("failed to decode response: %v", err)
-		}
-
-		data, ok := result["data"].([]interface{})
-		if !ok {
-			log.Printf("Unexpected response structure: %+v", result)
-			return nil, fmt.Errorf("unexpected response structure: data is not an array")
-		}
-
-		if len(data) > 0 {
-			if queryOther {
-				q.OrdersCacheOther = make([]map[string]interface{}, len(data))
-				q.OCTimeOther = time.Now()
-
-				for i, order := range data {
-					orderMap, ok := order.(map[string]interface{})
-					if !ok {
-						log.Printf("Unexpected order structure: %+v", order)
-						continue
-					}
-
-					orderInfo := map[string]interface{}{
-						"accountId":   orderMap["accountId"],
-						"targetDate":  time.Now().Format("2006-01-02 15:04:05"),
-						"orderId":     orderMap["id"],
-						"from":        orderMap["from"],
-						"to":          orderMap["to"],
-						"trainNumber": orderMap["trainNumber"],
-						"status":      orderMap["status"],
-					}
-
-					q.OrdersCacheOther[i] = orderInfo
-				}
-			} else {
-				q.OrdersCache = make([]map[string]interface{}, len(data))
-				q.OCTime = time.Now()
-
-				for i, order := range data {
-					orderMap, ok := order.(map[string]interface{})
-					if !ok {
-						log.Printf("Unexpected order structure: %+v", order)
-						continue
-					}
-
-					orderInfo := map[string]interface{}{
-						"accountId":   orderMap["accountId"],
-						"targetDate":  time.Now().Format("2006-01-02 15:04:05"),
-						"orderId":     orderMap["id"],
-						"from":        orderMap["from"],
-						"to":          orderMap["to"],
-						"trainNumber": orderMap["trainNumber"],
-						"status":      orderMap["status"],
-					}
-
-					q.OrdersCache[i] = orderInfo
-				}
-			}
-		}
-	}
+	//cmpTime := q.OCTime
+	//if queryOther {
+	//	cmpTime = q.OCTimeOther
+	//}
+	//
+	//if time.Now().After(cmpTime.Add(time.Second * time.Duration(rand.Intn(10)+20))) {
+	//	var url string
+	//	if queryOther {
+	//		url = fmt.Sprintf("%s/api/v1/orderOtherService/orderOther/refresh", q.Address)
+	//	} else {
+	//		url = fmt.Sprintf("%s/api/v1/orderservice/order/refresh", q.Address)
+	//	}
+	//
+	//	payload := map[string]string{
+	//		"loginId": q.UID,
+	//	}
+	//	jsonPayload, err := json.Marshal(payload)
+	//	if err != nil {
+	//		log.Printf("Error marshaling payload: %v", err)
+	//		return nil, fmt.Errorf("failed to marshal payload: %v", err)
+	//	}
+	//
+	//	log.Printf("Querying orders with payload: %s", string(jsonPayload))
+	//	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+	//	if err != nil {
+	//		log.Printf("Error creating request: %v", err)
+	//		return nil, fmt.Errorf("failed to create request: %v", err)
+	//	}
+	//	req.Header.Set("Content-Type", "application/json")
+	//	req.Header.Set("Authorization", "Bearer "+q.Token)
+	//
+	//	resp, err := q.Client.Do(req)
+	//	if err != nil {
+	//		log.Printf("Error sending request: %v", err)
+	//		return nil, fmt.Errorf("failed to send request: %v", err)
+	//	}
+	//	defer resp.Body.Close()
+	//
+	//	body, err := io.ReadAll(resp.Body)
+	//	if err != nil {
+	//		log.Printf("Error reading response body: %v", err)
+	//		return nil, fmt.Errorf("failed to read response body: %v", err)
+	//	}
+	//
+	//	// log.Printf("Order query response: %s", string(body))
+	//
+	//	if resp.StatusCode != http.StatusOK {
+	//		log.Printf("Non-OK status code: %d", resp.StatusCode)
+	//		return nil, fmt.Errorf("query orders failed with status code: %d, body: %s", resp.StatusCode, string(body))
+	//	}
+	//
+	//	var result map[string]interface{}
+	//	if err := json.Unmarshal(body, &result); err != nil {
+	//		log.Printf("Error unmarshaling JSON: %v", err)
+	//		return nil, fmt.Errorf("failed to decode response: %v", err)
+	//	}
+	//
+	//	data, ok := result["data"].([]interface{})
+	//	if !ok {
+	//		log.Printf("Unexpected response structure: %+v", result)
+	//		return nil, fmt.Errorf("unexpected response structure: data is not an array")
+	//	}
+	//
+	//	if len(data) > 0 {
+	//		if queryOther {
+	//			q.OrdersCacheOther = make([]map[string]interface{}, len(data))
+	//			q.OCTimeOther = time.Now()
+	//
+	//			for i, order := range data {
+	//				orderMap, ok := order.(map[string]interface{})
+	//				if !ok {
+	//					log.Printf("Unexpected order structure: %+v", order)
+	//					continue
+	//				}
+	//
+	//				orderInfo := map[string]interface{}{
+	//					"accountId":   orderMap["accountId"],
+	//					"targetDate":  time.Now().Format("2006-01-02 15:04:05"),
+	//					"orderId":     orderMap["id"],
+	//					"from":        orderMap["from"],
+	//					"to":          orderMap["to"],
+	//					"trainNumber": orderMap["trainNumber"],
+	//					"status":      orderMap["status"],
+	//				}
+	//
+	//				q.OrdersCacheOther[i] = orderInfo
+	//			}
+	//		} else {
+	//			q.OrdersCache = make([]map[string]interface{}, len(data))
+	//			q.OCTime = time.Now()
+	//
+	//			for i, order := range data {
+	//				orderMap, ok := order.(map[string]interface{})
+	//				if !ok {
+	//					log.Printf("Unexpected order structure: %+v", order)
+	//					continue
+	//				}
+	//
+	//				orderInfo := map[string]interface{}{
+	//					"accountId":   orderMap["accountId"],
+	//					"targetDate":  time.Now().Format("2006-01-02 15:04:05"),
+	//					"orderId":     orderMap["id"],
+	//					"from":        orderMap["from"],
+	//					"to":          orderMap["to"],
+	//					"trainNumber": orderMap["trainNumber"],
+	//					"status":      orderMap["status"],
+	//				}
+	//
+	//				q.OrdersCache[i] = orderInfo
+	//			}
+	//		}
+	//	}
+	//}
 
 	pairs := make([][2]string, 0)
 
+	_ = OCManager.QuerySem.Acquire(context.Background(), 1)
+
 	if queryOther {
-		for _, order := range q.OrdersCacheOther {
+		for _, order := range OCManager.OrdersCacheOther {
 			status, ok := order["status"].(float64)
 			if !ok {
 				log.Printf("Unexpected status type: %+v", order["status"])
@@ -388,7 +390,7 @@ func (q *Query) QueryOrders(orderTypes []int, queryOther bool) ([][2]string, err
 			}
 		}
 	} else {
-		for _, order := range q.OrdersCache {
+		for _, order := range OCManager.OrdersCache {
 			status, ok := order["status"].(float64)
 			if !ok {
 				log.Printf("Unexpected status type: %+v", order["status"])
@@ -409,6 +411,8 @@ func (q *Query) QueryOrders(orderTypes []int, queryOther bool) ([][2]string, err
 			}
 		}
 	}
+
+	OCManager.QuerySem.Release(1)
 
 	log.Printf("Found %d orders matching the criteria", len(pairs))
 	return pairs, nil
@@ -816,113 +820,127 @@ func (q *Query) RebookTicket(oldOrderID, oldTripID, newTripID, newDate, newSeatT
 }
 
 func (q *Query) QueryOrdersAllInfo(queryOther bool) ([]map[string]interface{}, error) {
-	cmpTime := q.OCTime
+	//cmpTime := q.OCTime
+	//if queryOther {
+	//	cmpTime = q.OCTimeOther
+	//}
+	//
+	//if time.Now().After(cmpTime.Add(time.Second * time.Duration(rand.Intn(10)+20))) {
+	//	var url string
+	//	if queryOther {
+	//		url = fmt.Sprintf("%s/api/v1/orderOtherService/orderOther/refresh", q.Address)
+	//	} else {
+	//		url = fmt.Sprintf("%s/api/v1/orderservice/order/refresh", q.Address)
+	//	}
+	//
+	//	payload := map[string]string{
+	//		"loginId": q.UID,
+	//	}
+	//
+	//	jsonPayload, err := json.Marshal(payload)
+	//	if err != nil {
+	//		return nil, fmt.Errorf("failed to marshal payload: %v", err)
+	//	}
+	//
+	//	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+	//	if err != nil {
+	//		return nil, fmt.Errorf("failed to create request: %v", err)
+	//	}
+	//	req.Header.Set("Content-Type", "application/json")
+	//	req.Header.Set("Authorization", "Bearer "+q.Token)
+	//
+	//	resp, err := q.Client.Do(req)
+	//	if err != nil {
+	//		return nil, fmt.Errorf("failed to send request: %v", err)
+	//	}
+	//	defer resp.Body.Close()
+	//
+	//	if resp.StatusCode != http.StatusOK {
+	//		body, _ := io.ReadAll(resp.Body)
+	//		return nil, fmt.Errorf("query orders all info failed with status code: %d, body: %s", resp.StatusCode, string(body))
+	//	}
+	//
+	//	var result map[string]interface{}
+	//	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	//		return nil, fmt.Errorf("failed to decode response: %v", err)
+	//	}
+	//
+	//	data, ok := result["data"].([]interface{})
+	//	if !ok {
+	//		log.Printf("Unexpected response structure: %+v", result)
+	//		return nil, fmt.Errorf("unexpected response structure: data is not an array")
+	//	}
+	//
+	//	if len(data) > 0 {
+	//		if queryOther {
+	//			q.OrdersCacheOther = make([]map[string]interface{}, len(data))
+	//			q.OCTimeOther = time.Now()
+	//
+	//			for i, order := range data {
+	//				orderMap, ok := order.(map[string]interface{})
+	//				if !ok {
+	//					log.Printf("Unexpected order structure: %+v", order)
+	//					continue
+	//				}
+	//
+	//				orderInfo := map[string]interface{}{
+	//					"accountId":   orderMap["accountId"],
+	//					"targetDate":  time.Now().Format("2006-01-02 15:04:05"),
+	//					"orderId":     orderMap["id"],
+	//					"from":        orderMap["from"],
+	//					"to":          orderMap["to"],
+	//					"trainNumber": orderMap["trainNumber"],
+	//					"status":      orderMap["status"],
+	//				}
+	//
+	//				q.OrdersCacheOther[i] = orderInfo
+	//			}
+	//		} else {
+	//			q.OrdersCache = make([]map[string]interface{}, len(data))
+	//			q.OCTime = time.Now()
+	//
+	//			for i, order := range data {
+	//				orderMap, ok := order.(map[string]interface{})
+	//				if !ok {
+	//					log.Printf("Unexpected order structure: %+v", order)
+	//					continue
+	//				}
+	//
+	//				orderInfo := map[string]interface{}{
+	//					"accountId":   orderMap["accountId"],
+	//					"targetDate":  time.Now().Format("2006-01-02 15:04:05"),
+	//					"orderId":     orderMap["id"],
+	//					"from":        orderMap["from"],
+	//					"to":          orderMap["to"],
+	//					"trainNumber": orderMap["trainNumber"],
+	//					"status":      orderMap["status"],
+	//				}
+	//
+	//				q.OrdersCache[i] = orderInfo
+	//			}
+	//		}
+	//	}
+	//}
+
+	var toReturn []map[string]interface{}
+
+	//if queryOther {
+	//	return q.OrdersCacheOther, nil
+	//}
+	//
+	//return q.OrdersCache, nil
+
+	_ = OCManager.QuerySem.Acquire(context.Background(), 1)
+
 	if queryOther {
-		cmpTime = q.OCTimeOther
+		toReturn = OCManager.OrdersCacheOther
+	} else {
+		toReturn = OCManager.OrdersCache
 	}
 
-	if time.Now().After(cmpTime.Add(time.Second * time.Duration(rand.Intn(10)+20))) {
-		var url string
-		if queryOther {
-			url = fmt.Sprintf("%s/api/v1/orderOtherService/orderOther/refresh", q.Address)
-		} else {
-			url = fmt.Sprintf("%s/api/v1/orderservice/order/refresh", q.Address)
-		}
+	OCManager.QuerySem.Release(1)
 
-		payload := map[string]string{
-			"loginId": q.UID,
-		}
-
-		jsonPayload, err := json.Marshal(payload)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal payload: %v", err)
-		}
-
-		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
-		if err != nil {
-			return nil, fmt.Errorf("failed to create request: %v", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+q.Token)
-
-		resp, err := q.Client.Do(req)
-		if err != nil {
-			return nil, fmt.Errorf("failed to send request: %v", err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return nil, fmt.Errorf("query orders all info failed with status code: %d, body: %s", resp.StatusCode, string(body))
-		}
-
-		var result map[string]interface{}
-		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-			return nil, fmt.Errorf("failed to decode response: %v", err)
-		}
-
-		data, ok := result["data"].([]interface{})
-		if !ok {
-			log.Printf("Unexpected response structure: %+v", result)
-			return nil, fmt.Errorf("unexpected response structure: data is not an array")
-		}
-
-		if len(data) > 0 {
-			if queryOther {
-				q.OrdersCacheOther = make([]map[string]interface{}, len(data))
-				q.OCTimeOther = time.Now()
-
-				for i, order := range data {
-					orderMap, ok := order.(map[string]interface{})
-					if !ok {
-						log.Printf("Unexpected order structure: %+v", order)
-						continue
-					}
-
-					orderInfo := map[string]interface{}{
-						"accountId":   orderMap["accountId"],
-						"targetDate":  time.Now().Format("2006-01-02 15:04:05"),
-						"orderId":     orderMap["id"],
-						"from":        orderMap["from"],
-						"to":          orderMap["to"],
-						"trainNumber": orderMap["trainNumber"],
-						"status":      orderMap["status"],
-					}
-
-					q.OrdersCacheOther[i] = orderInfo
-				}
-			} else {
-				q.OrdersCache = make([]map[string]interface{}, len(data))
-				q.OCTime = time.Now()
-
-				for i, order := range data {
-					orderMap, ok := order.(map[string]interface{})
-					if !ok {
-						log.Printf("Unexpected order structure: %+v", order)
-						continue
-					}
-
-					orderInfo := map[string]interface{}{
-						"accountId":   orderMap["accountId"],
-						"targetDate":  time.Now().Format("2006-01-02 15:04:05"),
-						"orderId":     orderMap["id"],
-						"from":        orderMap["from"],
-						"to":          orderMap["to"],
-						"trainNumber": orderMap["trainNumber"],
-						"status":      orderMap["status"],
-					}
-
-					q.OrdersCache[i] = orderInfo
-				}
-			}
-		}
-	}
-
-	if queryOther {
-		return q.OrdersCacheOther, nil
-	}
-
-	return q.OrdersCache, nil
+	return toReturn, nil
 }
 
 func (q *Query) QueryAdminBasicPrice() (*http.Response, error) {

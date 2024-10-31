@@ -148,10 +148,15 @@ func runLoadTest(url string) {
 
 	sem = semaphore.NewWeighted(int64(ThreadCount))
 
+	// Initialize order cache manager
+	InitOCM()
+
 	for i := 0; i < ThreadCount; i++ {
 		wg.Add(1)
 		go worker(i, url, scenarios, &wg, stopChan)
 	}
+
+	go dataFetchWorker(url, &wg, stopChan)
 
 	// Run for the specified duration
 	time.Sleep(time.Duration(DurationSeconds) * time.Second)
@@ -205,5 +210,45 @@ func worker(id int, url string, scenarios []struct {
 		}
 
 		sem.Release(1)
+	}
+}
+
+func dataFetchWorker(url string, wg *sync.WaitGroup, stopChan <-chan struct{}) {
+	defer wg.Done()
+
+	acquired := 0
+
+	q := NewQuery(url)
+	log.Printf("Order query worker: Attempting to login")
+	err := q.Login("fdse_microservice", "111111")
+	if err != nil {
+		log.Printf("Order query worker: Login failed: %v", err)
+		return
+	}
+	log.Printf("Order query worker: Login successful")
+
+	for {
+		select {
+		case <-stopChan:
+			log.Printf("Order query worker stopping!")
+			return
+		default:
+			if acquired == ThreadCount {
+				UpdateOrderCache(q)
+				OCManager.QuerySem.Release(int64(ThreadCount))
+				acquired = 0
+				log.Printf("Order query worker: Attempting to login")
+				err := q.Login("fdse_microservice", "111111")
+				if err != nil {
+					log.Printf("Order query worker: Login failed: %v", err)
+					return
+				}
+				log.Printf("Order query worker: Login successful")
+				time.Sleep(time.Second * time.Duration(rand.Intn(10)+20))
+			} else {
+				_ = OCManager.QuerySem.Acquire(context.Background(), int64(ThreadCount))
+				acquired += 1
+			}
+		}
 	}
 }
