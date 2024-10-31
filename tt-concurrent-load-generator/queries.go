@@ -377,7 +377,7 @@ func (q *Query) QueryOrders(orderTypes []int, queryOther bool) ([][2]string, err
 			}
 			for _, t := range orderTypes {
 				if int(status) == t {
-					id, ok1 := order["id"].(string)
+					id, ok1 := order["orderId"].(string)
 					trainNumber, ok2 := order["trainNumber"].(string)
 					if ok1 && ok2 {
 						pair := [2]string{id, trainNumber}
@@ -398,7 +398,7 @@ func (q *Query) QueryOrders(orderTypes []int, queryOther bool) ([][2]string, err
 			}
 			for _, t := range orderTypes {
 				if int(status) == t {
-					id, ok1 := order["id"].(string)
+					id, ok1 := order["orderId"].(string)
 					trainNumber, ok2 := order["trainNumber"].(string)
 					if ok1 && ok2 {
 						pair := [2]string{id, trainNumber}
