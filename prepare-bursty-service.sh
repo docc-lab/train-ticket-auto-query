@@ -3,14 +3,18 @@
 # Check if all required arguments are provided
 if [ "$#" -ne 5 ]; then
     echo "Prerequiste: 1. install maven, 2.login to dockerhub use "docker login", 3. make sure train-ticket repo is already in cacti-exp branch"
-    echo "Usage: $0 <service-name> <burst-threshold> <burst-rate> <burst-duration> <tag-name>"
-    echo "Example: $0 ts-cancel-service 10 5 10 v1.0.0"
+    echo "Usage: $0 <service-name> <bursty-period> <burst-rate> <burst-duration> <tag-name>"
+    echo "Example: $0 ts-cancel-service 60 5 10 v1.0.0"
+    echo "Parameters:"
+    echo "  - bursty-period: Time between bursts in seconds (e.g., 60 for 1 minute)"
+    echo "  - burst-rate: Requests per second during burst (e.g., 5)"
+    echo "  - burst-duration: Duration of each burst in seconds (e.g., 10)"
     exit 1
 fi
 
 # Assign arguments to variables
 SERVICE_NAME=$1
-BURST_THRESHOLD=$2
+BURSTY_PERIOD_SECONDS=$2
 BURST_REQUESTS_PER_SEC=$3
 BURST_DURATION_SECONDS=$4
 TAG_NAME=$5
@@ -29,16 +33,17 @@ cd /local/train-ticket || exit
 sudo chown -R $(whoami) .
 
 # Switch to the correct branch
-# git fetch origin '+refs/heads/*:refs/remotes/origin/*'
-# git switch -c cacti-exp origin/cacti-exp
-git switch cacti-exp
-git pull origin cacti-exp
+git switch exp-dev
+git pull origin exp-dev
 
 # Use sed to replace burst parameters in the controller file
-sed -i "s/private static final int BURST_THRESHOLD = [0-9]\+;/private static final int BURST_THRESHOLD = ${BURST_THRESHOLD};/" "$FILE_PATH"
+sed -i "s/private static final int BURSTY_PERIOD_SECONDS = [0-9]\+;/private static final int BURSTY_PERIOD_SECONDS = ${BURSTY_PERIOD_SECONDS};/" "$FILE_PATH"
 sed -i "s/private static final int BURST_REQUESTS_PER_SEC = [0-9]\+;/private static final int BURST_REQUESTS_PER_SEC = ${BURST_REQUESTS_PER_SEC};/" "$FILE_PATH"
 sed -i "s/private static final int BURST_DURATION_SECONDS = [0-9]\+;/private static final int BURST_DURATION_SECONDS = ${BURST_DURATION_SECONDS};/" "$FILE_PATH"
-echo "Updated burst variables"
+echo "Updated bursty load variables:"
+echo "- Bursty Period: ${BURSTY_PERIOD_SECONDS}s"
+echo "- Burst Rate: ${BURST_REQUESTS_PER_SEC} req/s" 
+echo "- Burst Duration: ${BURST_DURATION_SECONDS}s"
 
 # Build the project
 mvn clean install -DskipTests
@@ -56,4 +61,10 @@ kubectl set image "deployment/${SERVICE_NAME}" "${SERVICE_NAME}=docclabgroup/${S
 # Wait for the rollout to complete
 kubectl rollout status "deployment/${SERVICE_NAME}"
 
-echo "Deployment of ${SERVICE_NAME} with burst threshold ${BURST_THRESHOLD}, burst rate ${BURST_REQUESTS_PER_SEC} req/s, burst duration ${BURST_DURATION_SECONDS}s, and tag ${TAG_NAME} completed."
+echo "Deployment completed successfully!"
+echo "Service: ${SERVICE_NAME}"
+echo "Configuration:"
+echo "- Bursty Period: Every ${BURSTY_PERIOD_SECONDS} seconds"
+echo "- Burst Rate: ${BURST_REQUESTS_PER_SEC} requests per second"
+echo "- Burst Duration: ${BURST_DURATION_SECONDS} seconds"
+echo "- Image Tag: ${TAG_NAME}"
