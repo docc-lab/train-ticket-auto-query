@@ -151,12 +151,14 @@ func runLoadTest(url string) {
 	// Initialize order cache manager
 	InitOCM()
 
+	go dataFetchWorker(url, &wg, stopChan)
+
+	time.Sleep(time.Second)
+
 	for i := 0; i < ThreadCount; i++ {
 		wg.Add(1)
 		go worker(i, url, scenarios, &wg, stopChan)
 	}
-
-	go dataFetchWorker(url, &wg, stopChan)
 
 	// Run for the specified duration
 	time.Sleep(time.Duration(DurationSeconds) * time.Second)
@@ -234,6 +236,7 @@ func dataFetchWorker(url string, wg *sync.WaitGroup, stopChan <-chan struct{}) {
 			return
 		default:
 			if acquired == ThreadCount {
+				log.Printf("ACQUIRED ALL RESOURCES FOR CACHE UPDATE")
 				UpdateOrderCache(q)
 				OCManager.QuerySem.Release(int64(ThreadCount))
 				acquired = 0
