@@ -95,7 +95,7 @@ update_service_params() {
     if [ ! -f "$file_path" ]; then
         log_error "Controller file not found at $file_path"
         return 1
-    }
+    fi
     
     echo "Controller file path: $file_path"
     echo "Applying changes:"
