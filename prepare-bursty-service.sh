@@ -26,15 +26,58 @@ SERVICE_PART=$(echo $SERVICE_NAME | sed 's/ts-\(.*\)-service/\1/')
 CONTROLLER_NAME="$(tr '[:lower:]' '[:upper:]' <<< ${SERVICE_PART:0:1})${SERVICE_PART:1}Controller.java"
 
 # Construct the path
-FILE_PATH="${SERVICE_NAME}/src/main/java/${SERVICE_PART}/controller/${CONTROLLER_NAME}"
+# FILE_PATH="${SERVICE_NAME}/src/main/java/${SERVICE_PART}/controller/${CONTROLLER_NAME}"
+# handle unconsistent dir structure in some service
+get_controller_path() {
+    local service=$1
+    local service_part=$(echo $service | sed 's/ts-\(.*\)-service/\1/')
+    local controller_name="$(tr '[:lower:]' '[:upper:]' <<< ${service_part:0:1})${service_part:1}Controller.java"
+    
+    # Check if it's basic service which has different path
+    if [ "$service" = "ts-basic-service" ]; then
+        echo "${service}/src/main/java/fdse/microservice/controller/${controller_name}"
+    else
+        echo "${service}/src/main/java/${service_part}/controller/${controller_name}"
+    fi
+}
 
 # Navigate to the train-ticket directory
 cd /local/train-ticket || exit
 sudo chown -R $(whoami) .
 
 # Switch to the correct branch
-git switch exp-dev
-git pull origin exp-dev
+# git switch exp-dev
+# git pull origin exp-dev
+
+# Function to clean up any local changes and update to latest remote version
+cleanup_and_update() {
+    echo "Cleaning up local changes..."
+    git restore . 2>/dev/null || true
+    git clean -fd 2>/dev/null || true
+    
+    echo "Switching to exp-dev branch..."
+    git switch exp-dev
+    
+    echo "Pulling latest changes..."
+    git pull origin exp-dev --ff-only
+    
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to update to latest version. Exiting."
+        exit 1
+    fi
+}
+
+# Initial cleanup and update
+cleanup_and_update
+
+# Get the appropriate file path
+FILE_PATH=$(get_controller_path "$SERVICE_NAME")
+
+# Check if file exists
+if [ ! -f "$FILE_PATH" ]; then
+    echo "Error: Controller file not found at $FILE_PATH"
+    exit 1
+fi
 
 # Use sed to replace burst parameters in the controller file
 sed -i "s/private static final int BURSTY_PERIOD_SECONDS = [0-9]\+;/private static final int BURSTY_PERIOD_SECONDS = ${BURSTY_PERIOD_SECONDS};/" "$FILE_PATH"
