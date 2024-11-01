@@ -1,5 +1,18 @@
 #!/bin/bash
 
+# Function for consistent log formatting
+log_info() {
+    echo -e "\n[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $1"
+}
+
+log_error() {
+    echo -e "\n[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - $1" >&2
+}
+
+log_success() {
+    echo -e "\n[SUCCESS] $(date '+%Y-%m-%d %H:%M:%S') - $1"
+}
+
 # Check if all required arguments are provided
 if [ "$#" -ne 5 ]; then
     echo "Prerequiste: 1. install maven, 2.login to dockerhub use \"docker login\", 3. make sure train-ticket repo is already in cacti-exp branch"
@@ -55,9 +68,10 @@ cleanup_and_update() {
     git pull origin exp-dev --ff-only
     
     if [ $? -ne 0 ]; then
-        echo "Error: Failed to update to latest version. Exiting."
+        log_error "Failed to update to latest version. Exiting."
         exit 1
     fi
+    log_success "Repository cleanup and update completed"
 }
 
 # Function to update burst parameters in a service
@@ -67,12 +81,15 @@ update_service_params() {
     local rate=$3
     local duration=$4
     
+    log_info "Updating parameters for service: $service"
     local file_path=$(get_controller_path "$service")
     
     if [ ! -f "$file_path" ]; then
-        echo "Error: Controller file not found at $file_path"
+        log_error "Controller file not found at $file_path"
         return 1
     fi
+
+    echo "Controller file path: $file_path"
     
     sed -i "s/private static final int BURSTY_PERIOD_SECONDS = [0-9]\+;/private static final int BURSTY_PERIOD_SECONDS = ${period};/" "$file_path"
     sed -i "s/private static final int BURST_REQUESTS_PER_SEC = [0-9]\+;/private static final int BURST_REQUESTS_PER_SEC = ${rate};/" "$file_path"
@@ -89,25 +106,45 @@ build_and_deploy_service() {
     local service=$1
     local tag=$2
     
-    echo "Building and deploying $service..."
+  log_info "Starting build and deployment process for $service"
     
     # Navigate to the service directory
-    cd "${service}" || return 1
+    cd "${service}" || { log_error "Failed to navigate to ${service} directory"; return 1; }
     
-    # Build and push the Docker image
-    docker build -t "docclabgroup/${service}:${tag}" .
-    docker push "docclabgroup/${service}:${tag}"
+    # Build Docker image
+    log_info "Building Docker image for $service:$tag"
+    if ! docker build -t "docclabgroup/${service}:${tag}" .; then
+        log_error "Docker build failed for $service"
+        return 1
+    fi
     
-    # Update the Kubernetes deployment
-    kubectl set image "deployment/${service}" "${service}=docclabgroup/${service}:${tag}"
+    # Push Docker image
+    log_info "Pushing Docker image for $service:$tag"
+    if ! docker push "docclabgroup/${service}:${tag}"; then
+        log_error "Docker push failed for $service"
+        return 1
+    fi
     
-    # Wait for the rollout to complete
-    kubectl rollout status "deployment/${service}"
+    # Update Kubernetes deployment
+    log_info "Updating Kubernetes deployment for $service"
+    if ! kubectl set image "deployment/${service}" "${service}=docclabgroup/${service}:${tag}"; then
+        log_error "Kubernetes deployment update failed for $service"
+        return 1
+    fi
     
-    cd .. || return 1
+    # Wait for rollout
+    log_info "Waiting for rollout completion of $service"
+    if ! kubectl rollout status "deployment/${service}"; then
+        log_error "Kubernetes rollout failed for $service"
+        return 1
+    fi
+    
+    cd .. || { log_error "Failed to navigate back from ${service} directory"; return 1; }
+    log_success "Successfully deployed $service"
 }
 
 # Main execution starts here
+log_info "Starting main execution"
 cd /local/train-ticket || exit
 sudo chown -R $(whoami) .
 
@@ -117,18 +154,24 @@ cleanup_and_update
 # Build the entire project first
 mvn clean install -DskipTests
 
+log_info "Beginning service processing"
+echo "Total services to process: ${#BURSTY_SERVICES[@]}"
 # Process all services
 for service in "${BURSTY_SERVICES[@]}"; do
+    echo -e "\n----------------------------------------"
+    log_info "Processing service: $service"
+    
     if [ "$service" = "$TARGET_SERVICE" ]; then
-        # Update target service with specified burst parameters
+        log_info "$service is the target service - applying specified burst parameters"
         update_service_params "$service" "$BURSTY_PERIOD_SECONDS" "$BURST_REQUESTS_PER_SEC" "$BURST_DURATION_SECONDS"
     else
-        # Set all other services to zero burst parameters
+        log_info "$service is not the target service - setting zero burst parameters"
         update_service_params "$service" "0" "0" "0"
     fi
     
     # Build and deploy each service with the same tag
     build_and_deploy_service "$service" "$TAG_NAME"
+    echo "----------------------------------------"
 done
 
 echo "All deployments completed successfully!"
