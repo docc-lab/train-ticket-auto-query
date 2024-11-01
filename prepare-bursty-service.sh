@@ -15,8 +15,8 @@ log_success() {
 
 # Check if all required arguments are provided
 if [ "$#" -ne 5 ]; then
+    log_error "Missing required arguments"
     echo "Prerequiste: 1. install maven, 2.login to dockerhub use \"docker login\", 3. make sure train-ticket repo is already in cacti-exp branch"
-    echo "Functionality: 1. update the inputted service's burstness parameter to the desired, 2. update the remaining bursty services' parameter to all 0"
     echo "Usage: $0 <target-service-name> <bursty-period> <burst-rate> <burst-duration> <tag-name>"
     echo "Example: $0 ts-cancel-service 60 5 10 v1.0.0"
     echo "Parameters:"
@@ -41,6 +41,13 @@ BURST_REQUESTS_PER_SEC=$3
 BURST_DURATION_SECONDS=$4
 TAG_NAME=$5
 
+log_info "Starting service update process with following parameters:"
+echo "Target Service: $TARGET_SERVICE"
+echo "Bursty Period: $BURSTY_PERIOD_SECONDS seconds"
+echo "Burst Rate: $BURST_REQUESTS_PER_SEC requests/second"
+echo "Burst Duration: $BURST_DURATION_SECONDS seconds"
+echo "Tag Name: $TAG_NAME"
+
 # Function to get controller path based on service name
 get_controller_path() {
     local service=$1
@@ -57,6 +64,7 @@ get_controller_path() {
 
 # Function to clean up any local changes and update to latest remote version
 cleanup_and_update() {
+    log_info "Starting repository cleanup and update"
     echo "Cleaning up local changes..."
     git restore . 2>/dev/null || true
     git clean -fd 2>/dev/null || true
@@ -87,18 +95,34 @@ update_service_params() {
     if [ ! -f "$file_path" ]; then
         log_error "Controller file not found at $file_path"
         return 1
-    fi
-
-    echo "Controller file path: $file_path"
+    }
     
+    echo "Controller file path: $file_path"
+    echo "Applying changes:"
+    echo "  - BURSTY_PERIOD_SECONDS: $period"
+    echo "  - BURST_REQUESTS_PER_SEC: $rate"
+    echo "  - BURST_DURATION_SECONDS: $duration"
+    
+    # Create backup of original file
+    cp "$file_path" "${file_path}.bak"
+    
+    # Apply changes and verify
     sed -i "s/private static final int BURSTY_PERIOD_SECONDS = [0-9]\+;/private static final int BURSTY_PERIOD_SECONDS = ${period};/" "$file_path"
     sed -i "s/private static final int BURST_REQUESTS_PER_SEC = [0-9]\+;/private static final int BURST_REQUESTS_PER_SEC = ${rate};/" "$file_path"
     sed -i "s/private static final int BURST_DURATION_SECONDS = [0-9]\+;/private static final int BURST_DURATION_SECONDS = ${duration};/" "$file_path"
     
-    echo "Updated $service:"
-    echo "- Bursty Period: ${period}s"
-    echo "- Burst Rate: ${rate} req/s"
-    echo "- Burst Duration: ${duration}s"
+    # Verify changes were applied
+    if grep -q "BURSTY_PERIOD_SECONDS = ${period}" "$file_path" && \
+       grep -q "BURST_REQUESTS_PER_SEC = ${rate}" "$file_path" && \
+       grep -q "BURST_DURATION_SECONDS = ${duration}" "$file_path"; then
+        log_success "Successfully updated parameters for $service"
+        rm "${file_path}.bak"
+    else
+        log_error "Failed to update all parameters for $service"
+        log_info "Restoring backup file"
+        mv "${file_path}.bak" "$file_path"
+        return 1
+    fi
 }
 
 # Function to build and deploy a service
@@ -106,7 +130,7 @@ build_and_deploy_service() {
     local service=$1
     local tag=$2
     
-  log_info "Starting build and deployment process for $service"
+    log_info "Starting deployment process for $service"
     
     # Navigate to the service directory
     cd "${service}" || { log_error "Failed to navigate to ${service} directory"; return 1; }
@@ -145,27 +169,19 @@ build_and_deploy_service() {
 
 # Main execution starts here
 log_info "Starting main execution"
-cd /local/train-ticket || exit
+cd /local/train-ticket || { log_error "Failed to navigate to train-ticket directory"; exit 1; }
 sudo chown -R $(whoami) .
 
 # Initial cleanup and update
 cleanup_and_update
 
-# Build the entire project first
-# Build the entire project first
-log_info "Building entire project with Maven"
-if ! mvn clean install -DskipTests; then
-    log_error "Maven build failed"
-    exit 1
-fi
-log_success "Maven build completed"
-
-log_info "Beginning service processing"
+# First Phase: Update Parameters
+log_info "Phase 1: Updating service parameters"
 echo "Total services to process: ${#BURSTY_SERVICES[@]}"
-# Process all services
+
 for service in "${BURSTY_SERVICES[@]}"; do
     echo -e "\n----------------------------------------"
-    log_info "Processing service: $service"
+    log_info "Updating parameters for service: $service"
     
     if [ "$service" = "$TARGET_SERVICE" ]; then
         log_info "$service is the target service - applying specified burst parameters"
@@ -174,17 +190,32 @@ for service in "${BURSTY_SERVICES[@]}"; do
         log_info "$service is not the target service - setting zero burst parameters"
         update_service_params "$service" "0" "0" "0"
     fi
-    
-    # Build and deploy each service with the same tag
+    echo "----------------------------------------"
+done
+
+# Second Phase: Maven Build
+log_info "Phase 2: Building project with Maven"
+if ! mvn clean install -DskipTests; then
+    log_error "Maven build failed"
+    exit 1
+fi
+log_success "Maven build completed"
+
+# Third Phase: Build and Deploy Services
+log_info "Phase 3: Building and deploying services"
+for service in "${BURSTY_SERVICES[@]}"; do
+    echo -e "\n----------------------------------------"
+    log_info "Building and deploying service: $service"
     build_and_deploy_service "$service" "$TAG_NAME"
     echo "----------------------------------------"
 done
 
-echo "All deployments completed successfully!"
+log_success "All deployments completed successfully!"
+echo -e "\nFinal Configuration Summary:"
 echo "Target Service: ${TARGET_SERVICE}"
 echo "Target Configuration:"
 echo "- Bursty Period: ${BURSTY_PERIOD_SECONDS} seconds"
 echo "- Burst Rate: ${BURST_REQUESTS_PER_SEC} requests per second"
 echo "- Burst Duration: ${BURST_DURATION_SECONDS} seconds"
 echo "- Image Tag: ${TAG_NAME}"
-echo "All other services set to zero burst parameters"
+echo "All other services have been set to zero burst parameters"
