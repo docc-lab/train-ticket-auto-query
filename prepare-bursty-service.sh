@@ -152,7 +152,13 @@ sudo chown -R $(whoami) .
 cleanup_and_update
 
 # Build the entire project first
-mvn clean install -DskipTests
+# Build the entire project first
+log_info "Building entire project with Maven"
+if ! mvn clean install -DskipTests; then
+    log_error "Maven build failed"
+    exit 1
+fi
+log_success "Maven build completed"
 
 log_info "Beginning service processing"
 echo "Total services to process: ${#BURSTY_SERVICES[@]}"
