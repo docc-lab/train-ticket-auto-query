@@ -3,6 +3,7 @@
 # Check if all required arguments are provided
 if [ "$#" -ne 5 ]; then
     echo "Prerequiste: 1. install maven, 2.login to dockerhub use \"docker login\", 3. make sure train-ticket repo is already in cacti-exp branch"
+    echo "Functionality: 1. update the inputted service's burstness parameter to the desired, 2. update the remaining bursty services' parameter to all 0"
     echo "Usage: $0 <target-service-name> <bursty-period> <burst-rate> <burst-duration> <tag-name>"
     echo "Example: $0 ts-cancel-service 60 5 10 v1.0.0"
     echo "Parameters:"
