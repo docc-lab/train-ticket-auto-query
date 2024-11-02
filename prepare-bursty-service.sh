@@ -47,8 +47,8 @@ mvn clean install -DskipTests
 cd "${SERVICE_NAME}" || exit
 
 # Build and push the Docker image
-docker build -t "docclabgroup/${SERVICE_NAME}:${TAG_NAME}" .
-docker push "docclabgroup/${SERVICE_NAME}:${TAG_NAME}"
+sudo docker build -t "docclabgroup/${SERVICE_NAME}:${TAG_NAME}" .
+sudo docker push "docclabgroup/${SERVICE_NAME}:${TAG_NAME}"
 
 # Update the Kubernetes deployment
 kubectl set image "deployment/${SERVICE_NAME}" "${SERVICE_NAME}=docclabgroup/${SERVICE_NAME}:${TAG_NAME}"

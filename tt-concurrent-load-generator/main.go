@@ -95,8 +95,16 @@ func runWarmup(url string) {
 	log.Println("Starting warm-up session...")
 
 	var wg sync.WaitGroup
+	stopChan := make(chan struct{})
 	counter := NewWarmupCounter()
 	startTime := time.Now()
+
+	// Initialize order cache manager
+	InitOCM()
+
+	go dataFetchWorker(url, &wg, stopChan)
+
+	time.Sleep(time.Second)
 
 	for i := 0; i < ThreadCount; i++ {
 		wg.Add(1)
@@ -105,6 +113,8 @@ func runWarmup(url string) {
 
 	wg.Wait()
 	duration := time.Since(startTime)
+
+	close(stopChan)
 
 	log.Printf("Warm-up completed in %v. Created orders:", duration)
 	log.Printf("- Unpaid orders: %d (target: 2000)", counter.unpaidCount)
