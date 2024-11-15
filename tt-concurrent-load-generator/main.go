@@ -51,11 +51,11 @@ func main() {
 	}
 
 	if len(args) == 5 {
-		if len(args[4]) != 7 {
+		if len(args[4]) != 8 {
 			log.Fatalf("Invalid bitmap length for scenarios!")
 		}
 
-		activeScenarios = make([]byte, 7)
+		activeScenarios = make([]byte, 8)
 		for i, e := range strings.Split(args[4], "") {
 			if e == "0" {
 				activeScenarios[i] = 0
@@ -66,7 +66,7 @@ func main() {
 			}
 		}
 	} else {
-		activeScenarios = []byte{1, 1, 1, 1, 1, 1, 1}
+		activeScenarios = []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	}
 
 	if !*isWarmup {
@@ -137,6 +137,7 @@ func runLoadTest(url string) {
 		{"QueryAndExecute", QueryAndExecute},
 		{"QueryAndConsign", QueryAndConsign},
 		{"QueryAndRebook", QueryAndRebook},
+		{"QueryOnlyHighSpeed", QueryOnlyHighSpeed},
 	}
 
 	scenarios := make([]struct {
@@ -144,7 +145,7 @@ func runLoadTest(url string) {
 		function func(*Query)
 	}, 0)
 
-	for i := 0; i < 7; i += 1 {
+	for i := 0; i < 8; i += 1 {
 		if activeScenarios[i] == 1 {
 			scenarios = append(scenarios, allScenarios[i])
 		}
