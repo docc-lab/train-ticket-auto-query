@@ -13,18 +13,18 @@ log_success() {
     echo -e "\n[SUCCESS] $(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
 
-# Check if all required arguments are provided
-if [ "$#" -ne 5 ]; then
-    log_error "Missing required arguments"
-    echo "Prerequiste: 1. install maven, 2.login to dockerhub use \"docker login\", 3. make sure train-ticket repo is already in cacti-exp branch"
-    echo "Usage: $0 <target-service-name> <bursty-period> <burst-rate> <burst-duration> <tag-name>"
-    echo "Example: $0 ts-cancel-service 60 5 10 v1.0.0"
-    echo "Parameters:"
-    echo "  - bursty-period: Time between bursts in seconds (e.g., 60 for 1 minute)"
-    echo "  - burst-rate: Requests per second during burst (e.g., 5)"
-    echo "  - burst-duration: Duration of each burst in seconds (e.g., 10)"
-    exit 1
-fi
+
+# if [ "$#" -ne 5 ]; then
+#     log_error "Missing required arguments"
+#     echo "Prerequiste: 1. install maven, 2.login to dockerhub use \"docker login\", 3. make sure train-ticket repo is already in cacti-exp branch"
+#     echo "Usage: $0 <target-service-name> <bursty-period> <burst-rate> <burst-duration> <tag-name>"
+#     echo "Example: $0 ts-cancel-service 60 5 10 v1.0.0"
+#     echo "Parameters:"
+#     echo "  - bursty-period: Time between bursts in seconds (e.g., 60 for 1 minute)"
+#     echo "  - burst-rate: Requests per second during burst (e.g., 5)"
+#     echo "  - burst-duration: Duration of each burst in seconds (e.g., 10)"
+#     exit 1
+# fi
 
 # List of all bursty services
 BURSTY_SERVICES=(
@@ -34,12 +34,60 @@ BURSTY_SERVICES=(
     "ts-preserve-service"
 )
 
-# Assign arguments to variables
-TARGET_SERVICE=$1
-BURSTY_PERIOD_SECONDS=$2
-BURST_REQUESTS_PER_SEC=$3
-BURST_DURATION_SECONDS=$4
-TAG_NAME=$5
+
+# Function to randomly select a service
+select_random_service() {
+    local array_length=${#BURSTY_SERVICES[@]}
+    local random_index=$((RANDOM % array_length))
+    echo "${BURSTY_SERVICES[$random_index]}"
+}
+
+# Check arguments and handle --no-groundtruth flag
+if [ "$1" = "--no-groundtruth" ]; then
+    if [ "$#" -ne 5 ]; then
+        log_error "Missing required arguments"
+        echo "Prerequiste: 1. install maven, 2.login to dockerhub use \"docker login\", 3. make sure train-ticket repo is already in cacti-exp branch"
+        echo "Usage: $0 --no-groundtruth <bursty-period> <burst-rate> <burst-duration> <tag-name>"
+        echo "Example: $0 --no-groundtruth 60 5 10 v1.0.0"
+        echo "Parameters:"
+        echo "  - bursty-period: Time between bursts in seconds (e.g., 60 for 1 minute)"
+        echo "  - burst-rate: Requests per second during burst (e.g., 5)"
+        echo "  - burst-duration: Duration of each burst in seconds (e.g., 10)"
+        exit 1
+    fi
+    # Randomly select target service
+    TARGET_SERVICE=$(select_random_service)
+    BURSTY_PERIOD_SECONDS=$2
+    BURST_REQUESTS_PER_SEC=$3
+    BURST_DURATION_SECONDS=$4
+    TAG_NAME=$5
+    log_info "Random service selected: $TARGET_SERVICE"
+else
+    # Check if all required arguments are provided
+    if [ "$#" -ne 5 ]; then
+        log_error "Missing required arguments"
+        echo "Prerequiste: 1. install maven, 2.login to dockerhub use \"docker login\", 3. make sure train-ticket repo is already in cacti-exp branch"
+        echo "Usage: $0 <target-service-name> <bursty-period> <burst-rate> <burst-duration> <tag-name>"
+        echo "Example: $0 ts-cancel-service 60 5 10 v1.0.0"
+        echo "Parameters:"
+        echo "  - bursty-period: Time between bursts in seconds (e.g., 60 for 1 minute)"
+        echo "  - burst-rate: Requests per second during burst (e.g., 5)"
+        echo "  - burst-duration: Duration of each burst in seconds (e.g., 10)"
+        exit 1
+    fi
+    # Assign arguments to variables
+    TARGET_SERVICE=$1
+    BURSTY_PERIOD_SECONDS=$2
+    BURST_REQUESTS_PER_SEC=$3
+    BURST_DURATION_SECONDS=$4
+    TAG_NAME=$5
+fi
+
+# TARGET_SERVICE=$1
+# BURSTY_PERIOD_SECONDS=$2
+# BURST_REQUESTS_PER_SEC=$3
+# BURST_DURATION_SECONDS=$4
+# TAG_NAME=$5
 
 log_info "Starting service update process with following parameters:"
 echo "Target Service: $TARGET_SERVICE"
