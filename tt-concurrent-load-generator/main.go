@@ -51,11 +51,11 @@ func main() {
 	}
 
 	if len(args) == 5 {
-		if len(args[4]) != 7 {
+		if len(args[4]) != 8 {
 			log.Fatalf("Invalid bitmap length for scenarios!")
 		}
 
-		activeScenarios = make([]byte, 7)
+		activeScenarios = make([]byte, 8)
 		for i, e := range strings.Split(args[4], "") {
 			if e == "0" {
 				activeScenarios[i] = 0
@@ -66,7 +66,7 @@ func main() {
 			}
 		}
 	} else {
-		activeScenarios = []byte{1, 1, 1, 1, 1, 1, 1}
+		activeScenarios = []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	}
 
 	if !*isWarmup {
@@ -95,8 +95,16 @@ func runWarmup(url string) {
 	log.Println("Starting warm-up session...")
 
 	var wg sync.WaitGroup
+	stopChan := make(chan struct{})
 	counter := NewWarmupCounter()
 	startTime := time.Now()
+
+	// Initialize order cache manager
+	InitOCM()
+
+	go dataFetchWorker(url, &wg, stopChan)
+
+	time.Sleep(time.Second)
 
 	for i := 0; i < ThreadCount; i++ {
 		wg.Add(1)
@@ -105,6 +113,8 @@ func runWarmup(url string) {
 
 	wg.Wait()
 	duration := time.Since(startTime)
+
+	close(stopChan)
 
 	log.Printf("Warm-up completed in %v. Created orders:", duration)
 	log.Printf("- Unpaid orders: %d (target: 2000)", counter.unpaidCount)
@@ -127,6 +137,7 @@ func runLoadTest(url string) {
 		{"QueryAndExecute", QueryAndExecute},
 		{"QueryAndConsign", QueryAndConsign},
 		{"QueryAndRebook", QueryAndRebook},
+		{"QueryOnlyHighSpeed", QueryOnlyHighSpeed},
 	}
 
 	scenarios := make([]struct {
@@ -134,7 +145,7 @@ func runLoadTest(url string) {
 		function func(*Query)
 	}, 0)
 
-	for i := 0; i < 7; i += 1 {
+	for i := 0; i < 8; i += 1 {
 		if activeScenarios[i] == 1 {
 			scenarios = append(scenarios, allScenarios[i])
 		}

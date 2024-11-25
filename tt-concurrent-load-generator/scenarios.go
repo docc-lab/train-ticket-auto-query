@@ -87,6 +87,34 @@ func QueryAndCollect(q *Query) {
 	log.Printf("Order %s successfully queried and collected", orderID)
 }
 
+func QueryOnlyHighSpeed(q *Query) {
+	log.Println("Starting QueryOnlyHighSpeed operation")
+	start := ""
+	end := ""
+	var tripIDs []string
+	var tripDate string
+	var err error
+
+	start = "Shang Hai"
+	end = "Su Zhou"
+	log.Printf("Querying high-speed ticket from %s to %s for date %s", start, end, BaseDate.Format("2006-01-02"))
+	tripIDs, tripDate, err = q.QueryHighSpeedTicket([2]string{start, end}, BaseDate)
+
+	if err != nil {
+		log.Printf("Error querying tickets: %v", err)
+		return
+	}
+
+	log.Printf("Found %d trips. Trip date: %s", len(tripIDs), tripDate)
+
+	if len(tripIDs) == 0 {
+		log.Printf("No trips available from %s to %s on %s", start, end, BaseDate.Format("2006-01-02"))
+		return
+	}
+
+	log.Printf("High-speed tickets queried successfully from %s to %s for %s", start, end, tripDate)
+}
+
 func QueryAndPreserve(q *Query) {
 	log.Println("Starting QueryAndPreserve operation")
 	start := ""

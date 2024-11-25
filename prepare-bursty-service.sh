@@ -173,63 +173,46 @@ update_service_params() {
     fi
 }
 
-
-# Function to build and push Docker image
-build_and_push_docker() {
+# Function to build and deploy a service
+build_and_deploy_service() {
     local service=$1
     local tag=$2
-    
-    log_info "Building and pushing Docker image for $service"
-    
+
+    log_info "Starting deployment process for $service"
+
     # Navigate to the service directory
     cd "${service}" || { log_error "Failed to navigate to ${service} directory"; return 1; }
-    
+
     # Build Docker image
     log_info "Building Docker image for $service:$tag"
-    if ! docker build -t "docclabgroup/${service}:${tag}" .; then
+    if ! sudo docker build -t "docclabgroup/${service}:${tag}" .; then
         log_error "Docker build failed for $service"
-        cd ..
         return 1
     fi
-    
+
     # Push Docker image
     log_info "Pushing Docker image for $service:$tag"
-    if ! docker push "docclabgroup/${service}:${tag}"; then
+    if ! sudo docker push "docclabgroup/${service}:${tag}"; then
         log_error "Docker push failed for $service"
-        cd ..
         return 1
     fi
-    
+
+    # Update Kubernetes deployment
+    log_info "Updating Kubernetes deployment for $service"
+    if ! kubectl set image "deployment/${service}" "${service}=docclabgroup/${service}:${tag}"; then
+        log_error "Kubernetes deployment update failed for $service"
+        return 1
+    fi
+
+    # Wait for rollout
+    log_info "Waiting for rollout completion of $service"
+    if ! kubectl rollout status "deployment/${service}"; then
+        log_error "Kubernetes rollout failed for $service"
+        return 1
+    fi
+
     cd .. || { log_error "Failed to navigate back from ${service} directory"; return 1; }
-    log_success "Successfully built and pushed Docker image for $service"
-}
-
-# Function to check rollout status of all deployments
-check_all_rollouts() {
-    local services=("$@")
-    local failed_rollouts=()
-    local success=true
-
-    log_info "Checking rollout status for all services"
-    
-    for service in "${services[@]}"; do
-        log_info "Checking rollout status for $service"
-        if ! kubectl rollout status "deployment/${service}" --timeout=300s; then
-            log_error "Rollout failed for $service"
-            failed_rollouts+=("$service")
-            success=false
-        else
-            log_success "Rollout completed successfully for $service"
-        fi
-    done
-
-    if [ "$success" = false ]; then
-        log_error "The following services failed to roll out: ${failed_rollouts[*]}"
-        return 1
-    fi
-    
-    log_success "All services rolled out successfully"
-    return 0
+    log_success "Successfully deployed $service"
 }
 
 # Main execution starts here
@@ -247,7 +230,7 @@ echo "Total services to process: ${#BURSTY_SERVICES[@]}"
 for service in "${BURSTY_SERVICES[@]}"; do
     echo -e "\n----------------------------------------"
     log_info "Updating parameters for service: $service"
-    
+
     if [ "$service" = "$TARGET_SERVICE" ]; then
         log_info "$service is the target service - applying specified burst parameters"
         update_service_params "$service" "$BURSTY_PERIOD_SECONDS" "$BURST_REQUESTS_PER_SEC" "$BURST_DURATION_SECONDS"
@@ -266,43 +249,14 @@ if ! mvn clean install -DskipTests; then
 fi
 log_success "Maven build completed"
 
-# Third Phase: Build and Push Docker Images
-log_info "Phase 3: Building and pushing Docker images"
-failed_services=()
-
+# Third Phase: Build and Deploy Services
+log_info "Phase 3: Building and deploying services"
 for service in "${BURSTY_SERVICES[@]}"; do
     echo -e "\n----------------------------------------"
-    if ! build_and_push_docker "$service" "$TAG_NAME"; then
-        failed_services+=("$service")
-    fi
+    log_info "Building and deploying service: $service"
+    build_and_deploy_service "$service" "$TAG_NAME"
     echo "----------------------------------------"
 done
-
-if [ ${#failed_services[@]} -ne 0 ]; then
-    log_error "Failed to build/push the following services: ${failed_services[*]}"
-    exit 1
-fi
-
-# Fourth Phase: Update Kubernetes Deployments (in parallel)
-log_info "Phase 4: Updating Kubernetes deployments"
-echo "Updating all service images simultaneously..."
-
-for service in "${BURSTY_SERVICES[@]}"; do
-    log_info "Setting new image for $service"
-    kubectl set image "deployment/${service}" "${service}=docclabgroup/${service}:${TAG_NAME}" &
-done
-
-# Wait for all kubectl set image commands to complete
-log_info "Waiting for all image updates to complete"
-wait
-log_success "All deployment image updates initiated"
-
-# Fifth Phase: Check Rollout Status
-log_info "Phase 5: Checking rollout status for all services"
-if ! check_all_rollouts "${BURSTY_SERVICES[@]}"; then
-    log_error "Some deployments failed to roll out properly"
-    exit 1
-fi
 
 log_success "All deployments completed successfully!"
 echo -e "\nFinal Configuration Summary:"
