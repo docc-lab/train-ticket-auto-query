@@ -13,6 +13,19 @@ log_success() {
     echo -e "\n[SUCCESS] $(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
 
+# Function for consistent log formatting
+log_info() {
+    echo -e "\n[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $1"
+}
+
+log_error() {
+    echo -e "\n[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - $1" >&2
+}
+
+log_success() {
+    echo -e "\n[SUCCESS] $(date '+%Y-%m-%d %H:%M:%S') - $1"
+}
+
 # List of all bursty services
 BURSTY_SERVICES=(
     "ts-cancel-service"
@@ -94,6 +107,7 @@ get_controller_path() {
 # Function to clean up any local changes and update to latest remote version
 cleanup_and_update() {
     log_info "Starting repository cleanup and update"
+    log_info "Starting repository cleanup and update"
     echo "Cleaning up local changes..."
     git restore . 2>/dev/null || true
     git clean -fd 2>/dev/null || true
@@ -105,6 +119,7 @@ cleanup_and_update() {
     git pull origin exp-dev --ff-only
     
     if [ $? -ne 0 ]; then
+        log_error "Failed to update to latest version. Exiting."
         log_error "Failed to update to latest version. Exiting."
         exit 1
     fi
