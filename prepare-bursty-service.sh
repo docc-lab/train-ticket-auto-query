@@ -13,19 +13,6 @@ log_success() {
     echo -e "\n[SUCCESS] $(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
 
-# Function for consistent log formatting
-log_info() {
-    echo -e "\n[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
-
-log_error() {
-    echo -e "\n[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - $1" >&2
-}
-
-log_success() {
-    echo -e "\n[SUCCESS] $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
-
 # List of all bursty services
 BURSTY_SERVICES=(
     "ts-cancel-service"
