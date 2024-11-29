@@ -13,27 +13,30 @@ log_success() {
     echo -e "\n[SUCCESS] $(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
 
+# Function for consistent log formatting
+log_info() {
+    echo -e "\n[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $1"
+}
 
-# if [ "$#" -ne 5 ]; then
-#     log_error "Missing required arguments"
-#     echo "Prerequiste: 1. install maven, 2.login to dockerhub use \"docker login\", 3. make sure train-ticket repo is already in cacti-exp branch"
-#     echo "Usage: $0 <target-service-name> <bursty-period> <burst-rate> <burst-duration> <tag-name>"
-#     echo "Example: $0 ts-cancel-service 60 5 10 v1.0.0"
-#     echo "Parameters:"
-#     echo "  - bursty-period: Time between bursts in seconds (e.g., 60 for 1 minute)"
-#     echo "  - burst-rate: Requests per second during burst (e.g., 5)"
-#     echo "  - burst-duration: Duration of each burst in seconds (e.g., 10)"
-#     exit 1
-# fi
+log_error() {
+    echo -e "\n[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - $1" >&2
+}
+
+log_success() {
+    echo -e "\n[SUCCESS] $(date '+%Y-%m-%d %H:%M:%S') - $1"
+}
 
 # List of all bursty services
 BURSTY_SERVICES=(
     "ts-cancel-service"
     "ts-basic-service"
     "ts-travel-service"
-    "ts-preserve-service"
+    # "ts-preserve-service"
+    "ts-seat-service"
 )
 
+# Initialize array for tracking failed services
+failed_services=()
 
 # Function to randomly select a service
 select_random_service() {
@@ -55,19 +58,18 @@ if [ "$1" = "--no-groundtruth" ]; then
         echo "  - burst-duration: Duration of each burst in seconds (e.g., 10)"
         exit 1
     fi
-    # Randomly select target service
     TARGET_SERVICE=$(select_random_service)
     BURSTY_PERIOD_SECONDS=$2
     BURST_REQUESTS_PER_SEC=$3
     BURST_DURATION_SECONDS=$4
     TAG_NAME=$5
-    log_info "Random service selected: $TARGET_SERVICE"
+    log_info "Random target service selected: $TARGET_SERVICE"
 else
-    # Check if all required arguments are provided
     if [ "$#" -ne 5 ]; then
         log_error "Missing required arguments"
         echo "Prerequiste: 1. install maven, 2.login to dockerhub use \"docker login\", 3. make sure train-ticket repo is already in cacti-exp branch"
         echo "Usage: $0 <target-service-name> <bursty-period> <burst-rate> <burst-duration> <tag-name>"
+        echo "Note: the first parameter could be --no-groundtruth flag that randomly select a trigger serivce to enable burstness"
         echo "Example: $0 ts-cancel-service 60 5 10 v1.0.0"
         echo "Parameters:"
         echo "  - bursty-period: Time between bursts in seconds (e.g., 60 for 1 minute)"
@@ -75,19 +77,12 @@ else
         echo "  - burst-duration: Duration of each burst in seconds (e.g., 10)"
         exit 1
     fi
-    # Assign arguments to variables
     TARGET_SERVICE=$1
     BURSTY_PERIOD_SECONDS=$2
     BURST_REQUESTS_PER_SEC=$3
     BURST_DURATION_SECONDS=$4
     TAG_NAME=$5
 fi
-
-# TARGET_SERVICE=$1
-# BURSTY_PERIOD_SECONDS=$2
-# BURST_REQUESTS_PER_SEC=$3
-# BURST_DURATION_SECONDS=$4
-# TAG_NAME=$5
 
 log_info "Starting service update process with following parameters:"
 echo "Target Service: $TARGET_SERVICE"
@@ -113,6 +108,7 @@ get_controller_path() {
 # Function to clean up any local changes and update to latest remote version
 cleanup_and_update() {
     log_info "Starting repository cleanup and update"
+    log_info "Starting repository cleanup and update"
     echo "Cleaning up local changes..."
     git restore . 2>/dev/null || true
     git clean -fd 2>/dev/null || true
@@ -124,6 +120,7 @@ cleanup_and_update() {
     git pull origin exp-dev --ff-only
     
     if [ $? -ne 0 ]; then
+        log_error "Failed to update to latest version. Exiting."
         log_error "Failed to update to latest version. Exiting."
         exit 1
     fi
@@ -173,13 +170,13 @@ update_service_params() {
     fi
 }
 
-# Function to build and deploy a service
-build_and_deploy_service() {
+# Function to build and push Docker image
+build_and_push_docker() {
     local service=$1
     local tag=$2
-
-    log_info "Starting deployment process for $service"
-
+    
+    log_info "Building and pushing Docker image for $service"
+    
     # Navigate to the service directory
     cd "${service}" || { log_error "Failed to navigate to ${service} directory"; return 1; }
 
@@ -187,6 +184,7 @@ build_and_deploy_service() {
     log_info "Building Docker image for $service:$tag"
     if ! sudo docker build -t "docclabgroup/${service}:${tag}" .; then
         log_error "Docker build failed for $service"
+        cd ..
         return 1
     fi
 
@@ -194,25 +192,40 @@ build_and_deploy_service() {
     log_info "Pushing Docker image for $service:$tag"
     if ! sudo docker push "docclabgroup/${service}:${tag}"; then
         log_error "Docker push failed for $service"
+        cd ..
         return 1
     fi
-
-    # Update Kubernetes deployment
-    log_info "Updating Kubernetes deployment for $service"
-    if ! kubectl set image "deployment/${service}" "${service}=docclabgroup/${service}:${tag}"; then
-        log_error "Kubernetes deployment update failed for $service"
-        return 1
-    fi
-
-    # Wait for rollout
-    log_info "Waiting for rollout completion of $service"
-    if ! kubectl rollout status "deployment/${service}"; then
-        log_error "Kubernetes rollout failed for $service"
-        return 1
-    fi
-
+    
     cd .. || { log_error "Failed to navigate back from ${service} directory"; return 1; }
-    log_success "Successfully deployed $service"
+    log_success "Successfully built and pushed Docker image for $service"
+}
+
+# Function to check rollout status
+check_all_rollouts() {
+    local services=("$@")
+    local failed_rollouts=()
+    local success=true
+
+    log_info "Checking rollout status for all services"
+    
+    for service in "${services[@]}"; do
+        log_info "Checking rollout status for $service"
+        if ! kubectl rollout status "deployment/${service}" --timeout=300s; then
+            log_error "Rollout failed for $service"
+            failed_rollouts+=("$service")
+            success=false
+        else
+            log_success "Rollout completed successfully for $service"
+        fi
+    done
+
+    if [ "$success" = false ]; then
+        log_error "The following services failed to roll out: ${failed_rollouts[*]}"
+        return 1
+    fi
+    
+    log_success "All services rolled out successfully"
+    return 0
 }
 
 # Main execution starts here
@@ -249,14 +262,41 @@ if ! mvn clean install -DskipTests; then
 fi
 log_success "Maven build completed"
 
-# Third Phase: Build and Deploy Services
-log_info "Phase 3: Building and deploying services"
+# Third Phase: Build and Push Docker Images
+log_info "Phase 3: Building and pushing Docker images"
 for service in "${BURSTY_SERVICES[@]}"; do
     echo -e "\n----------------------------------------"
-    log_info "Building and deploying service: $service"
-    build_and_deploy_service "$service" "$TAG_NAME"
+    if ! build_and_push_docker "$service" "$TAG_NAME"; then
+        failed_services+=("$service")
+    fi
     echo "----------------------------------------"
 done
+
+if [ ${#failed_services[@]} -ne 0 ]; then
+    log_error "Failed to build/push the following services: ${failed_services[*]}"
+    exit 1
+fi
+
+# Fourth Phase: Update Kubernetes Deployments
+log_info "Phase 4: Updating Kubernetes deployments"
+echo "Updating all service images simultaneously..."
+
+for service in "${BURSTY_SERVICES[@]}"; do
+    log_info "Setting new image for $service"
+    kubectl set image "deployment/${service}" "${service}=docclabgroup/${service}:${TAG_NAME}" &
+done
+
+# Wait for all kubectl set image commands to complete
+log_info "Waiting for all image updates to complete"
+wait
+log_success "All deployment image updates initiated"
+
+# Fifth Phase: Check Rollout Status
+log_info "Phase 5: Checking rollout status for all services"
+if ! check_all_rollouts "${BURSTY_SERVICES[@]}"; then
+    log_error "Some deployments failed to roll out properly"
+    exit 1
+fi
 
 log_success "All deployments completed successfully!"
 echo -e "\nFinal Configuration Summary:"
