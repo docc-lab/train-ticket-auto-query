@@ -31,7 +31,8 @@ BURSTY_SERVICES=(
     "ts-cancel-service"
     "ts-basic-service"
     "ts-travel-service"
-    "ts-preserve-service"
+    # "ts-preserve-service"
+    "ts-seat-service"
 )
 
 # Initialize array for tracking failed services
