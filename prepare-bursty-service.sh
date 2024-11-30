@@ -13,19 +13,6 @@ log_success() {
     echo -e "\n[SUCCESS] $(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
 
-# Function for consistent log formatting
-log_info() {
-    echo -e "\n[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
-
-log_error() {
-    echo -e "\n[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - $1" >&2
-}
-
-log_success() {
-    echo -e "\n[SUCCESS] $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
-
 # List of all bursty services
 BURSTY_SERVICES=(
     "ts-cancel-service"
@@ -127,6 +114,21 @@ cleanup_and_update() {
     log_success "Repository cleanup and update completed"
 }
 
+# Function to get service implementation path based on service name
+get_service_path() {
+    local service=$1
+    
+    # Special path for basic service
+    if [ "$service" = "ts-basic-service" ]; then
+        echo "${service}/src/main/java/fdse/microservice/service/BasicServiceImpl.java"
+    else
+        # Keep original path handling for other services' controllers
+        local service_part=$(echo $service | sed 's/ts-\(.*\)-service/\1/')
+        local controller_name="$(tr '[:lower:]' '[:upper:]' <<< ${service_part:0:1})${service_part:1}Controller.java"
+        echo "${service}/src/main/java/${service_part}/controller/${controller_name}"
+    fi
+}
+
 # Function to update burst parameters in a service
 update_service_params() {
     local service=$1
@@ -135,16 +137,16 @@ update_service_params() {
     local duration=$4
     
     log_info "Updating parameters for service: $service"
-    local file_path=$(get_controller_path "$service")
+    local file_path=$(get_service_path "$service")
     
     if [ ! -f "$file_path" ]; then
-        log_error "Controller file not found at $file_path"
+        log_error "Service implementation file not found at $file_path"
         return 1
     fi
     
-    echo "Controller file path: $file_path"
+    echo "Service implementation file path: $file_path"
     echo "Applying changes:"
-    echo "  - BURSTY_PERIOD_SECONDS: $period"
+    echo "  - BURST_PERIOD_SECONDS: $period"
     echo "  - BURST_REQUESTS_PER_SEC: $rate"
     echo "  - BURST_DURATION_SECONDS: $duration"
     
@@ -152,12 +154,12 @@ update_service_params() {
     cp "$file_path" "${file_path}.bak"
     
     # Apply changes and verify
-    sed -i "s/private static final int BURSTY_PERIOD_SECONDS = [0-9]\+;/private static final int BURSTY_PERIOD_SECONDS = ${period};/" "$file_path"
+    sed -i "s/private static final int BURST_PERIOD_SECONDS = [0-9]\+;/private static final int BURST_PERIOD_SECONDS = ${period};/" "$file_path"
     sed -i "s/private static final int BURST_REQUESTS_PER_SEC = [0-9]\+;/private static final int BURST_REQUESTS_PER_SEC = ${rate};/" "$file_path"
     sed -i "s/private static final int BURST_DURATION_SECONDS = [0-9]\+;/private static final int BURST_DURATION_SECONDS = ${duration};/" "$file_path"
     
     # Verify changes were applied
-    if grep -q "BURSTY_PERIOD_SECONDS = ${period}" "$file_path" && \
+    if grep -q "BURST_PERIOD_SECONDS = ${period}" "$file_path" && \
        grep -q "BURST_REQUESTS_PER_SEC = ${rate}" "$file_path" && \
        grep -q "BURST_DURATION_SECONDS = ${duration}" "$file_path"; then
         log_success "Successfully updated parameters for $service"
@@ -179,18 +181,18 @@ build_and_push_docker() {
     
     # Navigate to the service directory
     cd "${service}" || { log_error "Failed to navigate to ${service} directory"; return 1; }
-    
+
     # Build Docker image
     log_info "Building Docker image for $service:$tag"
-    if ! docker build -t "docclabgroup/${service}:${tag}" .; then
+    if ! sudo docker build -t "docclabgroup/${service}:${tag}" .; then
         log_error "Docker build failed for $service"
         cd ..
         return 1
     fi
-    
+
     # Push Docker image
     log_info "Pushing Docker image for $service:$tag"
-    if ! docker push "docclabgroup/${service}:${tag}"; then
+    if ! sudo docker push "docclabgroup/${service}:${tag}"; then
         log_error "Docker push failed for $service"
         cd ..
         return 1
@@ -243,7 +245,7 @@ echo "Total services to process: ${#BURSTY_SERVICES[@]}"
 for service in "${BURSTY_SERVICES[@]}"; do
     echo -e "\n----------------------------------------"
     log_info "Updating parameters for service: $service"
-    
+
     if [ "$service" = "$TARGET_SERVICE" ]; then
         log_info "$service is the target service - applying specified burst parameters"
         update_service_params "$service" "$BURSTY_PERIOD_SECONDS" "$BURST_REQUESTS_PER_SEC" "$BURST_DURATION_SECONDS"
