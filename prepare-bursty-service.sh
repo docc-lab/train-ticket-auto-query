@@ -100,11 +100,11 @@ cleanup_and_update() {
     git restore . 2>/dev/null || true
     git clean -fd 2>/dev/null || true
     
-    echo "Switching to exp-dev branch..."
-    git switch exp-dev
+    echo "Switching to cacti-exp branch..."
+    git switch cacti-exp
     
     echo "Pulling latest changes..."
-    git pull origin exp-dev --ff-only
+    git pull origin cacti-exp --ff-only
     
     if [ $? -ne 0 ]; then
         log_error "Failed to update to latest version. Exiting."
