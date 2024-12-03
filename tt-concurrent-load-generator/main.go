@@ -199,13 +199,13 @@ func worker(id int, url string, scenarios []struct {
 
 	scenarioCount := 0
 	for {
-		_ = sem.Acquire(context.Background(), 1)
+		//_ = sem.Acquire(context.Background(), 1)
 
 		select {
 		case <-stopChan:
 			log.Printf("Worker %d: Stopping after executing %d scenarios", id, scenarioCount)
 
-			sem.Release(1)
+			//sem.Release(1)
 
 			return
 		default:
@@ -222,7 +222,7 @@ func worker(id int, url string, scenarios []struct {
 			scenarioCount++
 		}
 
-		sem.Release(1)
+		//sem.Release(1)
 	}
 }
 
