@@ -84,12 +84,7 @@ get_controller_path() {
     local service_part=$(echo $service | sed 's/ts-\(.*\)-service/\1/')
     local controller_name="$(tr '[:lower:]' '[:upper:]' <<< ${service_part:0:1})${service_part:1}Controller.java"
     
-    # Check if it's basic service which has different path
-    if [ "$service" = "ts-basic-service" ]; then
-        echo "${service}/src/main/java/fdse/microservice/controller/${controller_name}"
-    else
-        echo "${service}/src/main/java/${service_part}/controller/${controller_name}"
-    fi
+    echo "${service}/src/main/java/${service_part}/controller/${controller_name}"
 }
 
 # Function to clean up any local changes and update to latest remote version
@@ -119,7 +114,7 @@ get_service_path() {
     local service=$1
     
     # Special path and naming for basic service
-    if [ "$service" = "ts-basic-service" ]; then
+    if [ "$service" = "ts-basic-service" ] || [ "$service" = "ts-cancel-service" ]; then
         echo "${service}/src/main/java/fdse/microservice/service/BasicServiceImpl.java"
     else
         # Controller path for other services
@@ -150,7 +145,7 @@ update_service_params() {
     # Create backup of original file
     cp "$file_path" "${file_path}.bak"
     
-    if [ "$service" = "ts-basic-service" ]; then
+    if [ "$service" = "ts-basic-service" ] || [ "$service" = "ts-cancel-service" ]; then
         # BasicServiceImpl parameters
         echo "  - BURST_PERIOD_SECONDS: $period"
         echo "  - BURST_REQUESTS_PER_SEC: $rate"
