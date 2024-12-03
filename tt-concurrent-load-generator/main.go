@@ -197,6 +197,10 @@ func worker(id int, url string, scenarios []struct {
 	}
 	log.Printf("Worker %d: Login successful", id)
 
+	seed := time.Now().UnixNano()
+	source := rand.NewSource(seed + int64(id))
+	r := rand.New(source)
+
 	scenarioCount := 0
 	for {
 		//_ = sem.Acquire(context.Background(), 1)
@@ -211,7 +215,8 @@ func worker(id int, url string, scenarios []struct {
 		default:
 			UpdateBaseDate() // Update BaseDate to a new random date before each scenario
 
-			randomIndex := rand.Intn(len(scenarios))
+			//randomIndex := rand.Intn(len(scenarios))
+			randomIndex := r.Intn(len(scenarios))
 			scenario := scenarios[randomIndex]
 
 			log.Printf("Worker %d: Starting scenario %d: %s", id, scenarioCount+1, scenario.name)
