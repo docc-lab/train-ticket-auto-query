@@ -84,12 +84,7 @@ get_controller_path() {
     local service_part=$(echo $service | sed 's/ts-\(.*\)-service/\1/')
     local controller_name="$(tr '[:lower:]' '[:upper:]' <<< ${service_part:0:1})${service_part:1}Controller.java"
     
-    # Check if it's basic service which has different path
-    if [ "$service" = "ts-basic-service" ]; then
-        echo "${service}/src/main/java/fdse/microservice/controller/${controller_name}"
-    else
-        echo "${service}/src/main/java/${service_part}/controller/${controller_name}"
-    fi
+    echo "${service}/src/main/java/${service_part}/controller/${controller_name}"
 }
 
 # Function to clean up any local changes and update to latest remote version
@@ -114,6 +109,27 @@ cleanup_and_update() {
     log_success "Repository cleanup and update completed"
 }
 
+# Function to get path based on service name
+get_service_path() {
+    local service=$1
+    
+    # Special path and naming for basic service
+    if [ "$service" = "ts-basic-service" ]; then
+        echo "${service}/src/main/java/fdse/microservice/service/BasicServiceImpl.java"
+    elif [ "$service" = "ts-cancel-service" ]; then
+        echo "${service}/src/main/java/cancel/service/CancelServiceImpl.java"
+    elif [ "$service" = "ts-seat-service" ]; then
+        echo "${service}/src/main/java/seat/service/SeatServiceImpl.java"
+    elif [ "$service" = "ts-travel-service" ]; then
+        echo "${service}/src/main/java/travel/service/TravelServiceImpl.java"
+    else
+        # Controller path for other services
+        local service_part=$(echo $service | sed 's/ts-\(.*\)-service/\1/')
+        local controller_name="$(tr '[:lower:]' '[:upper:]' <<< ${service_part:0:1})${service_part:1}Controller.java"
+        echo "${service}/src/main/java/${service_part}/controller/${controller_name}"
+    fi
+}
+
 # Function to update burst parameters in a service
 update_service_params() {
     local service=$1
@@ -122,38 +138,63 @@ update_service_params() {
     local duration=$4
     
     log_info "Updating parameters for service: $service"
-    local file_path=$(get_controller_path "$service")
+    local file_path=$(get_service_path "$service")
     
     if [ ! -f "$file_path" ]; then
-        log_error "Controller file not found at $file_path"
+        log_error "File not found at $file_path"
         return 1
     fi
     
-    echo "Controller file path: $file_path"
+    echo "Target file path: $file_path"
     echo "Applying changes:"
-    echo "  - BURSTY_PERIOD_SECONDS: $period"
-    echo "  - BURST_REQUESTS_PER_SEC: $rate"
-    echo "  - BURST_DURATION_SECONDS: $duration"
     
     # Create backup of original file
     cp "$file_path" "${file_path}.bak"
     
-    # Apply changes and verify
-    sed -i "s/private static final int BURSTY_PERIOD_SECONDS = [0-9]\+;/private static final int BURSTY_PERIOD_SECONDS = ${period};/" "$file_path"
-    sed -i "s/private static final int BURST_REQUESTS_PER_SEC = [0-9]\+;/private static final int BURST_REQUESTS_PER_SEC = ${rate};/" "$file_path"
-    sed -i "s/private static final int BURST_DURATION_SECONDS = [0-9]\+;/private static final int BURST_DURATION_SECONDS = ${duration};/" "$file_path"
-    
-    # Verify changes were applied
-    if grep -q "BURSTY_PERIOD_SECONDS = ${period}" "$file_path" && \
-       grep -q "BURST_REQUESTS_PER_SEC = ${rate}" "$file_path" && \
-       grep -q "BURST_DURATION_SECONDS = ${duration}" "$file_path"; then
-        log_success "Successfully updated parameters for $service"
-        rm "${file_path}.bak"
+    if [ "$service" = "ts-basic-service" ] || [ "$service" = "ts-cancel-service" ] || [ "$service" = "ts-seat-service" ] || [ "$service" = "ts-travel-service" ] ; then
+        # BasicServiceImpl parameters
+        echo "  - BURST_PERIOD_SECONDS: $period"
+        echo "  - BURST_REQUESTS_PER_SEC: $rate"
+        echo "  - BURST_DURATION_SECONDS: $duration"
+        
+        sed -i "s/private static final int BURST_PERIOD_SECONDS = [0-9]\+;/private static final int BURST_PERIOD_SECONDS = ${period};/" "$file_path"
+        sed -i "s/private static final int BURST_REQUESTS_PER_SEC = [0-9]\+;/private static final int BURST_REQUESTS_PER_SEC = ${rate};/" "$file_path"
+        sed -i "s/private static final int BURST_DURATION_SECONDS = [0-9]\+;/private static final int BURST_DURATION_SECONDS = ${duration};/" "$file_path"
+        
+        # Verify changes for BasicServiceImpl
+        if grep -q "BURST_PERIOD_SECONDS = ${period}" "$file_path" && \
+           grep -q "BURST_REQUESTS_PER_SEC = ${rate}" "$file_path" && \
+           grep -q "BURST_DURATION_SECONDS = ${duration}" "$file_path"; then
+            log_success "Successfully updated parameters for $service"
+            rm "${file_path}.bak"
+        else
+            log_error "Failed to update all parameters for $service"
+            log_info "Restoring backup file"
+            mv "${file_path}.bak" "$file_path"
+            return 1
+        fi
     else
-        log_error "Failed to update all parameters for $service"
-        log_info "Restoring backup file"
-        mv "${file_path}.bak" "$file_path"
-        return 1
+        # Controller parameters for other services
+        echo "  - BURSTY_PERIOD_SECONDS: $period"
+        echo "  - BURST_REQUESTS_PER_SEC: $rate"
+        echo "  - BURST_DURATION_SECONDS: $duration"
+        
+        sed -i "s/private static final int BURSTY_PERIOD_SECONDS = [0-9]\+;/private static final int BURSTY_PERIOD_SECONDS = ${period};/" "$file_path"
+        sed -i "s/private static final int BURST_REQUESTS_PER_SEC = [0-9]\+;/private static final int BURST_REQUESTS_PER_SEC = ${rate};/" "$file_path"
+        sed -i "s/private static final int BURST_DURATION_SECONDS = [0-9]\+;/private static final int BURST_DURATION_SECONDS = ${duration};/" "$file_path"
+        
+        # Verify changes for Controllers
+        if grep -q "BURSTY_PERIOD_SECONDS = ${period}" "$file_path" && \
+           grep -q "BURST_REQUESTS_PER_SEC = ${rate}" "$file_path" && \
+           grep -q "BURST_DURATION_SECONDS = ${duration}" "$file_path"; then
+            log_success "Successfully updated parameters for $service"
+            rm "${file_path}.bak"
+        else
+            log_error "Failed to update all parameters for $service"
+            log_info "Restoring backup file"
+            mv "${file_path}.bak" "$file_path"
+            return 1
+        fi
     fi
 }
 
