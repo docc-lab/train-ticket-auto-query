@@ -119,7 +119,7 @@ get_service_path() {
     elif [ "$service" = "ts-cancel-service" ]; then
         echo "${service}/src/main/java/cancel/service/CancelServiceImpl.java"
     elif [ "$service" = "ts-seat-service" ]; then
-        echo "${service}/src/main/java/cancel/service/SeatServiceImpl.java"
+        echo "${service}/src/main/java/seat/service/SeatServiceImpl.java"
     else
         # Controller path for other services
         local service_part=$(echo $service | sed 's/ts-\(.*\)-service/\1/')
