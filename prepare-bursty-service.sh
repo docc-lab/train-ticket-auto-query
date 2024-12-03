@@ -118,6 +118,8 @@ get_service_path() {
         echo "${service}/src/main/java/fdse/microservice/service/BasicServiceImpl.java"
     elif [ "$service" = "ts-cancel-service" ]; then
         echo "${service}/src/main/java/cancel/service/CancelServiceImpl.java"
+    elif [ "$service" = "ts-seat-service" ]; then
+        echo "${service}/src/main/java/cancel/service/SeatServiceImpl.java"
     else
         # Controller path for other services
         local service_part=$(echo $service | sed 's/ts-\(.*\)-service/\1/')
@@ -147,7 +149,7 @@ update_service_params() {
     # Create backup of original file
     cp "$file_path" "${file_path}.bak"
     
-    if [ "$service" = "ts-basic-service" ] || [ "$service" = "ts-cancel-service" ]; then
+    if [ "$service" = "ts-basic-service" ] || [ "$service" = "ts-cancel-service" ] || [ "$service" = "ts-seat-service" ] ; then
         # BasicServiceImpl parameters
         echo "  - BURST_PERIOD_SECONDS: $period"
         echo "  - BURST_REQUESTS_PER_SEC: $rate"
