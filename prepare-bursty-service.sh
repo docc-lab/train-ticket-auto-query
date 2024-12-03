@@ -114,8 +114,10 @@ get_service_path() {
     local service=$1
     
     # Special path and naming for basic service
-    if [ "$service" = "ts-basic-service" ] || [ "$service" = "ts-cancel-service" ]; then
+    if [ "$service" = "ts-basic-service" ]; then
         echo "${service}/src/main/java/fdse/microservice/service/BasicServiceImpl.java"
+    elif [ "$service" = "ts-cancel-service" ]; then
+        echo "${service}/src/main/java/cancel/service/CancelServiceImpl.java"
     else
         # Controller path for other services
         local service_part=$(echo $service | sed 's/ts-\(.*\)-service/\1/')
