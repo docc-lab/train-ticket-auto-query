@@ -195,6 +195,7 @@ func runSetParams(ipAddr string, service string, params [3]int) {
 
 	req, _ := http.NewRequest("POST", targetURL, bytes.NewBuffer(jsonPayload))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+q.Token)
 
 	resp, err := q.Client.Do(req)
 	if err != nil {
