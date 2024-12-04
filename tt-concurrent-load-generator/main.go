@@ -165,8 +165,8 @@ func runWarmup(url string) {
 	log.Printf("Total orders created: %d", counter.getTotalCount())
 }
 
-func runSetParams(url string, service string, params [3]int) {
-	q := NewQuery(url)
+func runSetParams(ipAddr string, service string, params [3]int) {
+	q := NewQuery(fmt.Sprintf("http://%s:8080", ipAddr))
 
 	err := q.Login("fdse_microservice", "111111")
 	if err != nil {
@@ -201,8 +201,8 @@ func runSetParams(url string, service string, params [3]int) {
 	log.Println("Successfully set burst parameters!")
 }
 
-func runGetParams(url string, service string) {
-	q := NewQuery(url)
+func runGetParams(ipAddr string, service string) {
+	q := NewQuery(fmt.Sprintf("http://%s:8080", ipAddr))
 
 	err := q.Login("fdse_microservice", "111111")
 	if err != nil {
