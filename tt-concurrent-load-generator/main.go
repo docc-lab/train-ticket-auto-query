@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"golang.org/x/sync/semaphore"
+	"io"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -25,6 +29,8 @@ var (
 func main() {
 	// Add warm-up flag
 	isWarmup := flag.Bool("warmup", false, "Run in warm-up mode")
+	isSetParams := flag.Bool("setparams", false, "Set burst parameters")
+	isGetParams := flag.Bool("getparams", false, "Get burst parameters")
 	flag.Parse()
 
 	args := flag.Args()
@@ -35,11 +41,37 @@ func main() {
 			fmt.Println("Warm-up mode usage: ./tt-concurrent-load-generator -warmup <TRAIN_TICKET_UI_IPADDR> <BASE_DATE> <NUM_THREADS>")
 			os.Exit(1)
 		}
+	} else if *isSetParams {
+		if len(args) != 2 {
+			fmt.Println("SetParams mode usage: ./tt-concurrent-load-generator -getparams <TRAIN_TICKET_UI_IPADDR> <BURSTY_SERVICE>")
+			os.Exit(1)
+		}
 	} else {
 		if len(args) < 4 || len(args) > 5 {
 			fmt.Println("Load test mode usage: ./tt-concurrent-load-generator <TRAIN_TICKET_UI_IPADDR> <BASE_DATE> <NUM_THREADS> <DURATION_SECONDS> [<SCENARIO_FLAGS>]")
 			os.Exit(1)
 		}
+	}
+
+	params := [3]int{0, 0, 0}
+	for i := 0; i < 3; i += 1 {
+		param, err := strconv.Atoi(args[i+2])
+		if err != nil {
+			log.Fatalf("Invalid parameter: %v", err)
+		}
+		params[i] = param
+	}
+
+	if *isSetParams {
+		runSetParams(
+			args[0],
+			args[1],
+			params,
+		)
+	}
+
+	if *isGetParams {
+		runGetParams(args[0], args[1])
 	}
 
 	ipAddr := args[0]
@@ -122,6 +154,85 @@ func runWarmup(url string) {
 	log.Printf("- Collected orders: %d (target: 1000)", counter.collectedCount)
 	log.Printf("- Consigned orders: %d (target: 1000)", counter.consignedCount)
 	log.Printf("Total orders created: %d", counter.getTotalCount())
+}
+
+func runSetParams(url string, service string, params [3]int) {
+	q := NewQuery(url)
+
+	err := q.Login("fdse_microservice", "111111")
+	if err != nil {
+		log.Printf("Login failed: %v", err)
+		return
+	}
+	log.Printf("Login successful")
+
+	targetURL := ""
+	switch service {
+	case "ts-basic-service":
+		targetURL = fmt.Sprintf("%s/api/v1/basicservice/setBurstParams", q.Address)
+	case "ts-cancel-service":
+		targetURL = fmt.Sprintf("%s/api/v1/cancelservice/setBurstParams", q.Address)
+	case "ts-seat-service":
+		targetURL = fmt.Sprintf("%s/api/v1/seatservice/setBurstParams", q.Address)
+	case "ts-travel-service":
+		targetURL = fmt.Sprintf("%s/api/v1/travelservice/setBurstParams", q.Address)
+	}
+
+	jsonPayload, _ := json.Marshal(params)
+
+	req, _ := http.NewRequest("POST", targetURL, bytes.NewBuffer(jsonPayload))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := q.Client.Do(req)
+	if err != nil {
+		log.Fatalf("query ticket failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	log.Println("Successfully set burst parameters!")
+}
+
+func runGetParams(url string, service string) {
+	q := NewQuery(url)
+
+	err := q.Login("fdse_microservice", "111111")
+	if err != nil {
+		log.Printf("Login failed: %v", err)
+		return
+	}
+	log.Printf("Login successful")
+
+	targetURL := ""
+	switch service {
+	case "ts-basic-service":
+		targetURL = fmt.Sprintf("%s/api/v1/basicservice/getBurstParams", q.Address)
+	case "ts-cancel-service":
+		targetURL = fmt.Sprintf("%s/api/v1/cancelservice/getBurstParams", q.Address)
+	case "ts-seat-service":
+		targetURL = fmt.Sprintf("%s/api/v1/seatservice/getBurstParams", q.Address)
+	case "ts-travel-service":
+		targetURL = fmt.Sprintf("%s/api/v1/travelservice/getBurstParams", q.Address)
+	}
+
+	req, _ := http.NewRequest("GET", targetURL, nil)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := q.Client.Do(req)
+	if err != nil {
+		log.Fatalf("query ticket failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalf("failed to read response body: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		log.Fatalf("get parameters: %d", resp.StatusCode)
+	}
+
+	log.Printf(string(body))
 }
 
 func runLoadTest(url string) {

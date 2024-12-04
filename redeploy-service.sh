@@ -21,8 +21,8 @@ cleanup_and_update() {
     log_info "Starting repository cleanup and update"
     log_info "Starting repository cleanup and update"
     echo "Cleaning up local changes..."
-    git restore . 2>/dev/null || true
-    git clean -fd 2>/dev/null || true
+#    git restore . 2>/dev/null || true
+#    git clean -fd 2>/dev/null || true
 
     echo "Switching to cacti-exp branch..."
     git switch cacti-exp
@@ -93,6 +93,9 @@ check_rollout() {
     log_success "Updated service rolled out successfully"
     return 0
 }
+
+# Initial cleanup and update
+cleanup_and_update
 
 # Main execution starts here
 log_info "Starting main execution"
