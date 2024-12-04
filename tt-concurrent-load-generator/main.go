@@ -230,6 +230,7 @@ func runGetParams(ipAddr string, service string) {
 
 	req, _ := http.NewRequest("GET", targetURL, nil)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+q.Token)
 
 	resp, err := q.Client.Do(req)
 	if err != nil {
