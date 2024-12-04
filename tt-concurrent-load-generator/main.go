@@ -73,10 +73,14 @@ func main() {
 			args[1],
 			params,
 		)
+
+		return
 	}
 
 	if *isGetParams {
 		runGetParams(args[0], args[1])
+
+		return
 	}
 
 	ipAddr := args[0]
