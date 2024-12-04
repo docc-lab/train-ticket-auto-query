@@ -42,6 +42,11 @@ func main() {
 			os.Exit(1)
 		}
 	} else if *isSetParams {
+		if len(args) != 5 {
+			fmt.Println("SetParams mode usage: ./tt-concurrent-load-generator -getparams <TRAIN_TICKET_UI_IPADDR> <BURSTY_SERVICE> <BURST_PERIOD> <BURST_RATE> <BURST_DURATION>")
+			os.Exit(1)
+		}
+	} else if *isGetParams {
 		if len(args) != 2 {
 			fmt.Println("SetParams mode usage: ./tt-concurrent-load-generator -getparams <TRAIN_TICKET_UI_IPADDR> <BURSTY_SERVICE>")
 			os.Exit(1)
