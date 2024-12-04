@@ -94,12 +94,9 @@ check_rollout() {
     return 0
 }
 
-# Initial cleanup and update
-cleanup_and_update
-
 # Main execution starts here
 log_info "Starting main execution"
-cd /local/train-ticket || { log_error "Failed to navigate to train-ticket directory"; exit 1; }
+cd /local/train-ticket-2 || { log_error "Failed to navigate to train-ticket directory"; exit 1; }
 sudo chown -R $(whoami) .
 
 # First Phase: Maven Build
