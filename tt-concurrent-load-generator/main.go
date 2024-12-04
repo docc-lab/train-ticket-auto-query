@@ -180,6 +180,10 @@ func runSetParams(ipAddr string, service string, params [3]int) {
 	case "ts-basic-service":
 		targetURL = fmt.Sprintf("%s/api/v1/basicservice/setBurstParams", q.Address)
 	case "ts-cancel-service":
+		err = q.CheckAndRefreshToken()
+		if err != nil {
+			log.Fatalf("failed to check/refresh token: %v", err)
+		}
 		targetURL = fmt.Sprintf("%s/api/v1/cancelservice/setBurstParams", q.Address)
 	case "ts-seat-service":
 		targetURL = fmt.Sprintf("%s/api/v1/seatservice/setBurstParams", q.Address)
