@@ -58,16 +58,16 @@ func main() {
 		}
 	}
 
-	params := [3]int{0, 0, 0}
-	for i := 0; i < 3; i += 1 {
-		param, err := strconv.Atoi(args[i+2])
-		if err != nil {
-			log.Fatalf("Invalid parameter: %v", err)
-		}
-		params[i] = param
-	}
-
 	if *isSetParams {
+		params := [3]int{0, 0, 0}
+		for i := 0; i < 3; i += 1 {
+			param, err := strconv.Atoi(args[i+2])
+			if err != nil {
+				log.Fatalf("Invalid parameter: %v", err)
+			}
+			params[i] = param
+		}
+
 		runSetParams(
 			args[0],
 			args[1],
