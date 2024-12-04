@@ -98,6 +98,7 @@ check_rollout() {
 log_info "Starting main execution"
 cd /local/train-ticket-2 || { log_error "Failed to navigate to train-ticket directory"; exit 1; }
 sudo chown -R $(whoami) .
+git pull
 
 # First Phase: Maven Build
 log_info "Phase 1: Building project with Maven"

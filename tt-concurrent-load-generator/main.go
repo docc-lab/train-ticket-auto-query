@@ -226,6 +226,8 @@ func runGetParams(ipAddr string, service string) {
 		targetURL = fmt.Sprintf("%s/api/v1/seatservice/getBurstParams", q.Address)
 	case "ts-travel-service":
 		targetURL = fmt.Sprintf("%s/api/v1/travelservice/getBurstParams", q.Address)
+	case "ts-preserve-service":
+		targetURL = fmt.Sprintf("%s/api/v1/preserveservice/getBurstParams", q.Address)
 	}
 
 	req, _ := http.NewRequest("GET", targetURL, nil)
