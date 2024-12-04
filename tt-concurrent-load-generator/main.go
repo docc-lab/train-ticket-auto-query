@@ -175,20 +175,23 @@ func runSetParams(ipAddr string, service string, params [3]int) {
 	}
 	log.Printf("Login successful")
 
+	err = q.CheckAndRefreshToken()
+	if err != nil {
+		log.Fatalf("failed to check/refresh token: %v", err)
+	}
+
 	targetURL := ""
 	switch service {
 	case "ts-basic-service":
 		targetURL = fmt.Sprintf("%s/api/v1/basicservice/setBurstParams", q.Address)
 	case "ts-cancel-service":
-		err = q.CheckAndRefreshToken()
-		if err != nil {
-			log.Fatalf("failed to check/refresh token: %v", err)
-		}
 		targetURL = fmt.Sprintf("%s/api/v1/cancelservice/setBurstParams", q.Address)
 	case "ts-seat-service":
 		targetURL = fmt.Sprintf("%s/api/v1/seatservice/setBurstParams", q.Address)
 	case "ts-travel-service":
 		targetURL = fmt.Sprintf("%s/api/v1/travelservice/setBurstParams", q.Address)
+	case "ts-preserve-service":
+		targetURL = fmt.Sprintf("%s/api/v1/preserveservice/setBurstParams", q.Address)
 	}
 
 	jsonPayload, _ := json.Marshal(params)
@@ -215,6 +218,11 @@ func runGetParams(ipAddr string, service string) {
 		return
 	}
 	log.Printf("Login successful")
+
+	err = q.CheckAndRefreshToken()
+	if err != nil {
+		log.Fatalf("failed to check/refresh token: %v", err)
+	}
 
 	targetURL := ""
 	switch service {
